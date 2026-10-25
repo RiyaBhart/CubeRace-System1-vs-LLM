@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rubik's Cube Race | AI Engineering Lab</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"
+    ></script>
+    <script defer src="/assets/app.js"></script>
+  </head>
+  <body>
+    <div id="identity" role="banner">Student: loading… | Roll No: loading…</div>
+    <main>
+      <header>
+        <div>
+          <p class="eyebrow">AI ENGINEERING / ASSIGNMENT 02</p>
+          <h1>RUBIK'S CUBE <span>RACE</span></h1>
+          <p class="subtitle">
+            One scramble. Four agents. Every decision measured.
+          </p>
+        </div>
+        <div class="header-actions">
+          <span id="modeBadge" class="pill">CONNECTING</span
+          ><button id="viewRace" class="tab active">Race</button
+          ><button id="viewStats" class="tab">Results</button>
+        </div>
+      </header>
+      <p id="notice" class="notice" role="status" aria-live="polite">
+        Preparing experiment…
+      </p>
+      <section class="toolbar" aria-label="Experiment controls">
+        <label
+          >Test set<select id="testSet">
+            <option value="race">Single puzzle</option>
+            <option value="smoke">Smoke test · 4 calls</option>
+            <option value="primary">Primary benchmark · 5 puzzles</option>
+            <option value="warmup">Warm-up · 2 puzzles</option>
+            <option value="extension">Extension · 5 puzzles</option>
+          </select></label
+        >
+        <label
+          >Scramble turns<input
+            id="length"
+            type="number"
+            min="1"
+            max="20"
+            value="4"
+        /></label>
+        <label
+          >Execution<select id="execution">
+            <option value="simulated">Simulation · free</option>
+            <option value="live">Live · paid API</option>
+          </select></label
+        >
+        <button id="newScramble">New scramble</button>
+        <button id="run" class="primary">Run simulation</button>
+      </section>
+      <details class="control-drawer">
+        <summary>Benchmark settings</summary>
+        <div class="advanced-controls">
+          <label
+            >Seed<input
+              id="seed"
+              type="number"
+              min="0"
+              max="4294967295"
+              value="104729"
+          /></label>
+          <label
+            >Puzzles<input
+              id="puzzles"
+              type="number"
+              min="1"
+              max="100"
+              value="1"
+          /></label>
+          <label
+            >Repeats<input
+              id="repeats"
+              type="number"
+              min="1"
+              max="20"
+              value="1"
+          /></label>
+          <label
+            >Run mode<select id="runMode">
+              <option value="concurrent">Concurrent race</option>
+              <option value="sequential">Sequential measurement</option>
+            </select></label
+          >
+        </div>
+      </details>
+      <div id="liveControls" class="live-controls" hidden>
+        <label
+          >API request cap (whole calls)<input
+            id="requestCap"
+            type="number"
+            min="1"
+            step="1"
+            placeholder="Enter cap"
+        /></label>
+        <label class="consent-label"
+          ><input id="liveConsent" type="checkbox" /> I approve paid API
+          requests for this run.</label
+        >
+        <span id="recommendedCap"></span>
+        <span class="footnote">This caps API calls, not USD. Monetary limits belong on your OpenRouter key.</span>
+      </div>
+      <p id="billing" class="billing" aria-live="polite">
+        Live request usage and reported billing: loading…
+      </p>
+      <details class="control-drawer">
+        <summary>Saved runs &amp; replay · no API calls</summary>
+        <section class="replay-toolbar">
+          <label
+            >Saved run<select id="savedRuns">
+              <option value="">Choose a recording…</option>
+            </select></label
+          >
+          <label
+            >Puzzle / repeat<select id="replayPuzzle">
+              <option value="">Select a saved run</option>
+            </select></label
+          >
+          <label
+            >Replay speed<select id="speed">
+              <option value="1">1×</option>
+              <option value="2.5">2.5×</option>
+            </select></label
+          >
+          <button id="replay">Replay</button
+          ><button id="stopReplay" disabled>Stop replay</button
+          ><button id="export" disabled>Export JSON</button>
+        </section>
+      </details>
+      <p id="progress" class="run-progress"></p>
+      <dialog id="approvalDialog" aria-labelledby="approvalTitle">
+        <h2 id="approvalTitle">Approve this paid run?</h2>
+        <p id="approvalDescription"></p>
+        <p>
+          Actual cost depends on returned usage. Missing billing stays unknown.
+          This approval applies only to this run.
+        </p>
+        <button id="cancelPaid">Cancel</button
+        ><button id="approvePaid" class="primary">Approve paid run</button>
+      </dialog>
+      <section id="raceView">
+        <section class="scramble-panel">
+          <div>
+            <p class="eyebrow">SHARED STARTING POSITION</p>
+            <div id="scramble" class="scramble">—</div>
+          </div>
+          <div class="ground-truth">
+            Exact HTM optimum <strong id="optimum">pending</strong>
+          </div>
+          <details>
+            <summary>Start state & facelet legend</summary>
+            <code id="startState"></code>
+            <p>
+              URFDLB order, 9 row-major stickers per face as viewed from
+              outside. Net: U above F; L F R B across; D below F. Clockwise is
+              viewed from outside the turned face.
+            </p>
+          </details>
+        </section>
+        <div id="cards" class="cards"></div>
+      </section>
+      <section id="statsView" hidden>
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">MEASURED, NOT ASSUMED</p>
+            <h2>Statistical benchmarks</h2>
+          </div>
+          <span id="sampleLabel"></span>
+        </div>
+        <div id="winners" class="winners"></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Model</th>
+                <th>Mean / med / p95 ms</th>
+                <th>Incl. retries ms</th>
+                <th>Avg solve / total s</th>
+                <th>Total turns</th>
+                <th>Solved</th>
+                <th>Moves (solved)</th>
+                <th>Gap mean / med</th>
+                <th>Unsolved / unavailable / not run</th>
+                <th>Invalid / retry</th>
+                <th>Tokens / USD</th>
+              </tr>
+            </thead>
+            <tbody id="summaryRows"></tbody>
+          </table>
+        </div>
+        <p class="footnote">
+          Latency pools recorded turns, including failed turns. Gap excludes
+          failures and unproven references. Repeats count as attempts. Read
+          solve rate alongside solved-only solution quality.
+        </p>
+        <div class="charts">
+          <article>
+            <h3>Decision latency · ms</h3>
+            <canvas
+              id="latencyChart"
+              aria-label="Mean turn latency by model"
+              role="img"
+            ></canvas>
+          </article>
+          <article>
+            <h3>Solve rate · %</h3>
+            <canvas
+              id="successChart"
+              aria-label="Solve rate by model"
+              role="img"
+            ></canvas>
+          </article>
+          <article>
+            <h3>Mean optimality gap · HTM</h3>
+            <canvas
+              id="gapChart"
+              aria-label="Mean proven optimality gap"
+              role="img"
+            ></canvas>
+          </article>
+          <article>
+            <h3>Latency vs. quality · bubble = solve rate</h3>
+            <canvas
+              id="scatterChart"
+              aria-label="Latency versus gap scatter plot"
+              role="img"
+            ></canvas>
+          </article>
+        </div>
+        <div id="distributions" class="distributions"></div>
+        <article class="analysis">
+          <p class="eyebrow">REPORT NOTES</p>
+          <h2>Five questions, answered from the data</h2>
+          <ol id="answers"></ol>
+        </article>
+      </section>
+      <footer>
+        18-move half-turn metric · identical state information · server-side
+        credentials · exact distances only when proven
+      </footer>
+    </main>
+  </body>
+</html>

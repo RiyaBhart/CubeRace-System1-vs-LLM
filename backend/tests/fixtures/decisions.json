@@ -1,0 +1,20 @@
+{
+  "provenance": "Synthetic contract fixtures based on OpenRouter documentation; NOT recorded live responses.",
+  "valid": [
+    {"answers": {"next_move": {"type": "choice", "choice": "R'", "confidence": 0.82}}, "usage": {"input_tokens": 10, "output_tokens": 2, "cost": 0.0001}},
+    {"results": {"next_move": {"selected": "U2", "probabilities": {"U2": 0.7}}}},
+    {"decisions": {"next_move": {"value": "F"}}},
+    {"questions": {"next_move": {"option": "B2"}}},
+    {"next_move": "D"}
+  ],
+  "invalid": [
+    {},
+    {"answers": {"next_move": {"type": "score", "choice": "R"}}},
+    {"answers": {"next_move": {"choice": "R", "value": "U"}}},
+    {"answers": {"next_move": {"probabilities": {"R": 0.99}}}},
+    {"answers": {"next_move": {"choice": "R U"}}},
+    {"answers": {"next_move": {"choice": " R "}}},
+    {"answers": {"next_move": {"choice": ["R"]}}},
+    {"next_move": "R", "answers": {"next_move": {"choice": "R"}}}
+  ]
+}

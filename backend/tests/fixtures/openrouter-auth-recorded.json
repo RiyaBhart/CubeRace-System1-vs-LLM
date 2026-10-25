@@ -1,0 +1,5 @@
+{
+  "provenance": "Observed during the local Decisions API probe on 2026-10-26 (Asia/Karachi). No credential or request headers retained.",
+  "http_status": 401,
+  "raw": {"error": {"message": "User not found.", "code": 401}}
+}

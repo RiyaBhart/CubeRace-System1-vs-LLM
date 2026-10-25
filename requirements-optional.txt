@@ -1,0 +1,2 @@
+# Optional extension reference only. May require a compiler on Windows.
+kociemba==1.2.1

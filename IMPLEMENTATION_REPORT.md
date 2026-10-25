@@ -79,6 +79,21 @@ Use separate reports for simulated diagnostics, live smoke and live primary tria
 
 See VERIFICATION.md for executed checks and their scope.
 
+## Claude routing compatibility correction
+
+The user's subsequent explicitly approved run produced a recorded 404:
+"No endpoints found that can handle the requested parameters", failing the
+parameter-routing filter. An unbilled public endpoint-metadata GET confirmed
+that none of the 11 returned endpoints advertised temperature support, whereas
+reasoning, max_tokens and response_format were listed. The request still carried
+the original implementation's temperature=0. That unsupported parameter was
+removed, with a regression assertion that temperature/top_p/top_k are absent.
+Effort, completion ceiling, assigned model and strict schema remain unchanged.
+The fix was checked offline and against metadata, without another inference call;
+live success is not asserted. Historical failed trials remain unchanged.
+
+Source: [Anthropic Opus 5.5 migration guide](https://platform.claude.com/docs/en/models/opus-5-5/migration-guide).
+
 ## Historical model behavior (pre-optimization, not a new test)
 
 The existing recording `20261025T211204-6daec4a2` contains 30 legal moves each

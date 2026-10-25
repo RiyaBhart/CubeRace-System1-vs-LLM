@@ -20,6 +20,10 @@ Verified on 2026-10-26 (Asia/Karachi), Windows, Python 3.13.13.
 - Claude contract: low effort, 512-token ceiling, strict enum schema and parameter
   support routing; mandatory thinking is never disabled. Effort/ceiling are fixed
   and fingerprinted across trials. Unsupported schema has no downgrade.
+- Claude compatibility correction: removed unsupported temperature=0 after a
+  user-approved run returned a parameter-routing 404. Public unbilled metadata
+  listed no temperature support across 11 endpoints. Regression tests assert no
+  temperature/top_p/top_k. No paid inference was initiated to test this fix.
 - Accounting: raw per-request usage, input/completion/reasoning/total tokens and
   known/unknown billed cost. Reasoning is not double counted. Partial known cost
   never becomes a fabricated complete total. Model/run/suite summaries are tested.

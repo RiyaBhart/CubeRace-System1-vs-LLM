@@ -21,7 +21,9 @@ class ChatAdapter(OpenRouterAdapter):
 
     def request(self, state, recent, allowed):
         context = {'instructions': INSTRUCTIONS, **shared_context(state, recent, allowed)}
-        body = {'model': self.model.id, 'temperature': 0,
+        # Opus 5.5 removed temperature/top_p/top_k. Sending temperature=0
+        # excludes every endpoint under require_parameters=True (HTTP 404).
+        body = {'model': self.model.id,
                 'max_tokens': self.settings.claude_max_tokens,
                 'reasoning': {'effort': self.settings.claude_reasoning_effort},
                 'usage': {'include': True},

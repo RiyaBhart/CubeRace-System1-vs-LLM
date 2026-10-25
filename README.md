@@ -131,6 +131,12 @@ Strict JSON-schema output is preserved, with all legal moves in the enum and
 `provider.require_parameters=true`. No alternative model, JSON-object downgrade,
 output repair, or plain-text fallback is used.
 
+Claude Opus 5.5 does not support `temperature`, `top_p` or `top_k`; these are
+omitted. Retaining the old `temperature=0` excludes all current endpoints under
+strict parameter routing. This model-specific API limitation replaces the original
+assignment's suggested temperature setting; shared state/action information is
+unchanged. See [the migration guide](https://platform.claude.com/docs/en/models/opus-5-5/migration-guide).
+
 `CLAUDE_REASONING_EFFORT=low` and `CLAUDE_MAX_TOKENS=512` are fixed across trials
 and saved in the run fingerprint/results. Accepted efforts are low, medium, high,
 xhigh and max. Mandatory adaptive reasoning is **not disabled**. The output limit

@@ -44,6 +44,7 @@ def test_fixed_claude_contract_and_identical_information(tmp_path):
     chat = ChatAdapter(MODELS[-1], client, config).request(solved_state(), history, MOVES)[1]
     user = json.loads(chat['messages'][1]['content'])
     assert chat['reasoning'] == {'effort': 'low'}
+    assert not {'temperature','top_p','top_k'} & set(chat)
     assert chat['max_tokens'] == 512 and chat['usage'] == {'include': True}
     assert chat['response_format']['json_schema']['strict'] is True
     assert chat['provider']['require_parameters'] is True

@@ -117,19 +117,16 @@ The exact common instruction is:
 
 > Choose one move toward the goal. Facelets: row-major URFDLB, fixed centers. Singmaster turns: clockwise viewed directly at the named face. Half-turn metric (HTM): 180 degrees counts as one move. Limit: 30 moves.
 
-Each call includes current `cube_facelets`, **complete own legal move history** in
-`recent_moves`, solved `goal_facelets`, `moves_remaining` = 30 minus legal moves
-already executed, `metric: HTM`, and identical meanings for all 18 legal choices.
-`RECENT_MOVES_N` is retained only for legacy configuration compatibility; optimized
-runs do not truncate history. No scramble, inverse solution, BFS output, other
-agent history, heuristic score or accumulated chat transcript is sent.
-
-Decisions places the instruction/criteria in the typed question and other fields
-in state. Claude receives equivalent compact JSON and only this system message:
-`Return one legal move as schema JSON.` The sole action shape is `{"move":"R"}`.
-Strict JSON-schema output is preserved, with all legal moves in the enum and
-`provider.require_parameters=true`. No alternative model, JSON-object downgrade,
-output repair, or plain-text fallback is used.
+Each call uses `backend/presentation.py`: current facelets plus an unfolded color-name
+net, per-face grids with top/right neighbor orientation, fixed center color map,
+solved goal, complete own history by default, remaining moves, HTM, all legal move
+meanings and per-face/total correctly placed counts. The shared instruction advises
+against immediate undo without a reason. Decisions puts the identical instruction
+and criteria in its question; Claude receives the equivalent JSON and the system
+message `Return one legal move as schema JSON.` It must return only `{"move":"R"}`.
+No live adapter receives a scramble, BFS distance, solution or another agent's moves.
+The richer representation intentionally costs more input than the previous compact
+condition; it is a new experiment, and improved solve rates have not been established.
 
 Claude Opus 5.5 does not support `temperature`, `top_p` or `top_k`; these are
 omitted. Retaining the old `temperature=0` excludes all current endpoints under
@@ -278,3 +275,54 @@ Delete only a corrupt BFS cache to rebuild it; **do not delete the live ledger t
 get more budget**. Optional Kociemba may need compiler tools. This is a loopback
 assignment application: public hosting would require authentication, quotas and
 a multi-worker job store. No public deployment is included.
+
+## Pipeline diagnostics and paired conditions
+
+`HISTORY_LENGTH=-1` means all legal moves, `0` none, otherwise last N (up to 30).
+`CONDITION=pure` is A; `assisted` is B. Set these in the environment or override
+with CLI/UI controls. MAX_MOVES stays capped at 30; shorter limits are configurable.
+Named sets keep fixed ranges: warmup 3-4, primary 4-5, extension 15-20. Use
+`--set race --puzzles 1 --length N` for a custom fixed length.
+
+A contains only state presentation. B adds the post-move correctly placed facelet
+count for each of the 18 legal actions. This heuristic is not distance to solved,
+may have local maxima and can decline on an optimal path. No loop filter is used;
+all 18 actions stay available to everyone. Full histories/counts and identical
+instructions are shared across all four models. No solver data enters A or B.
+
+Offline, no-key, paired validation (four named agents are **simulations**, not API results):
+
+```powershell
+python -m pytest -q
+python -m backend.benchmark --set primary --puzzles 5 --condition both --baselines --mode sequential
+```
+
+Both conditions reuse the same seed/puzzle generation and produce separate run
+IDs and reports. UI Condition chooses one per approved run; retain the same seed,
+set and repeat count for the other. Enable offline baselines in settings to include
+oracle/random/greedy in the Results table. They never use OpenRouter. The exact
+oracle is NOT_RUN for extension states without a proven exact distance; it never
+masquerades as a two-phase optimal solution. Random uses a seeded uniform choice;
+greedy uses one-step correct-facelet maximization with seeded tie-breaking. These
+baseline policies are fixed across conditions. Their local CPU timings are not
+network latency comparisons. They are excluded from model winner badges/answers.
+
+For a **separately approved** paid experiment, use `--approve-live --request-cap N`.
+Do not run this solely to record a demo. `--condition both` authorizes **two runs**,
+each capped at N: combined worst case 2N, still within the unchanged persistent
+suite budget. This patch neither resets nor increases any budget. Zero retries and
+Claude low effort/512 ceiling are unchanged. The ceiling can still prevent replies.
+No additional paid test has been performed for this patch.
+
+Read existing JSON without inference, merge only into separate condition/set/source rows:
+
+```powershell
+python -m backend.diagnostics results/RUN_A.json results/RUN_B.json --output results/comparison.md
+python -m backend.diagnostics results/RUN_A.json --raw
+```
+
+Diagnostics include selected move frequencies, immediate inverse pairs (including
+half-turn self-inverses), consecutive identical moves, parse failures, invalid-output
+rate over completed calls, HTTP errors and optionally full saved raw responses.
+Legacy recordings are labeled `legacy`; do not relabel them as the new Pure condition.
+The pipeline review lists observed failures, fixes, assumptions and offline evidence.

@@ -53,6 +53,10 @@ class GameResult(BaseModel):
     category: str
     mock: bool
     diagnostic: bool = False
+    condition: str = 'legacy'
+    benchmark_set: str = 'legacy'
+    agent_kind: Literal['model', 'baseline'] = 'model'
+    diagnostics: dict[str, Any] = Field(default_factory=dict)
     puzzle_id: str
     repeat: int
     seed: int

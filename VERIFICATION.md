@@ -79,3 +79,17 @@ status. The earlier 102-test full-suite result predates these two added cases.
 6. Only when deliberately approved, run the four-call smoke and then a five-puzzle
    sequential primary benchmark as documented in README. Existing request counts
    remain in force; request caps are whole calls, not dollars.
+
+
+## Pure/Assisted pipeline update
+
+See PIPELINE_REVIEW.md for the first oracle checks, saved-response audit, fixes,
+API constraints, paired offline comparison, and provenance limitations. No paid
+inference was run by the agent for this update. The full updated suite passed
+115 tests before final configuration/documentation edits; final verification is
+recorded below after those edits.
+
+Final offline verification: 115 pytest tests passed (one upstream AnyIO deprecation warning).
+Paired five-puzzle primary simulations plus offline controls completed under both conditions.
+Browser verified Assisted selection, completion and seven separately labeled dashboard rows.
+Live request ledger stayed at 598/604 during this verification; no budget changes were made.

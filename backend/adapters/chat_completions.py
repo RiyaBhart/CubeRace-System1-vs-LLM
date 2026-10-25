@@ -1,5 +1,6 @@
 import json
 from .base import INSTRUCTIONS, OpenRouterAdapter, shared_context
+from ..presentation import instruction
 
 URL = 'https://openrouter.ai/api/v1/chat/completions'
 
@@ -25,7 +26,8 @@ class ChatAdapter(OpenRouterAdapter):
         return parse_response(raw, allowed)
 
     def request(self, state, recent, allowed):
-        context = {'instructions': INSTRUCTIONS, **shared_context(state, recent, allowed)}
+        context = {'instructions': instruction(self.settings.max_moves), **shared_context(state, recent, allowed,
+            max_moves=self.settings.max_moves, history_length=self.settings.history_length, condition=self.settings.condition)}
         # Opus 5.5 removed temperature/top_p/top_k. Sending temperature=0
         # excludes every endpoint under require_parameters=True (HTTP 404).
         body = {'model': self.model.id,

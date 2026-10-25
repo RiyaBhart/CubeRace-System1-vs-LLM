@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     game_timeout_s: float = Field(300, gt=0)
     request_timeout_s: float = Field(60, gt=0)
     recent_moves_n: int = Field(5, ge=0, le=30)
+    history_length: int = Field(-1, ge=-1, le=30)  # -1 means complete history
+    condition: Literal['pure', 'assisted'] = 'pure'
     max_retries: int = Field(0, ge=0, le=10)
     claude_reasoning_effort: Literal['low', 'medium', 'high', 'xhigh', 'max'] = 'low'
     claude_max_tokens: int = Field(512, ge=32, le=65536)

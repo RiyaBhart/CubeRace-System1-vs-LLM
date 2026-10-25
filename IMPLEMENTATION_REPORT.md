@@ -113,3 +113,12 @@ two legal moves across 86 requests; Claude applied no move and recorded 13 inval
 outputs across 14 requests before ERROR. These observations motivated request
 and retry safeguards but do not validate the new settings, establish a model
 winner, or demonstrate savings. They were read from disk, with no inference.
+
+
+## Pure/Assisted pipeline update
+
+See PIPELINE_REVIEW.md for the first oracle checks, saved-response audit, fixes,
+API constraints, paired offline comparison, and provenance limitations. No paid
+inference was run by the agent for this update. The full updated suite passed
+115 tests before final configuration/documentation edits; final verification is
+recorded below after those edits.

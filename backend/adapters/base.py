@@ -15,18 +15,7 @@ from ..budget import BudgetExhausted, LivePermit
 from ..schemas import AdapterResult
 
 log = logging.getLogger(__name__)
-INSTRUCTIONS = ('Choose one move toward the goal. Facelets: row-major URFDLB, fixed centers. '
-                'Singmaster turns: clockwise viewed directly at the named face. '
-                'Half-turn metric (HTM): 180 degrees counts as one move. Limit: 30 moves.')
-
-
-def shared_context(state: str, recent_moves: list[str], allowed_moves: tuple[str, ...]) -> dict:
-    criteria = {m: f'{NAMES[m[0]]} ' + ('180 degrees' if m.endswith('2') else
-                '90 degrees counterclockwise' if m.endswith("'") else '90 degrees clockwise')
-                for m in allowed_moves}
-    return {'cube_facelets': state, 'recent_moves': recent_moves,
-            'goal_facelets': solved_state(), 'moves_remaining': max(0, 30-len(recent_moves)),
-            'metric': 'HTM', 'criteria': criteria}
+from ..presentation import INSTRUCTIONS, shared_context
 
 
 class ModelAdapter(ABC):

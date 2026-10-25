@@ -5,16 +5,17 @@ Fixture variants are synthetic contract examples, not claimed live recordings.
 """
 import math
 from .base import INSTRUCTIONS, OpenRouterAdapter, shared_context
+from ..presentation import instruction
 
 URL = 'https://openrouter.ai/api/alpha/decisions'
 
 
-def build_request(model: str, state: str, recent: list[str], allowed: tuple[str, ...]) -> dict:
-    context = shared_context(state, recent, allowed)
+def build_request(model: str, state: str, recent: list[str], allowed: tuple[str, ...], *, max_moves=30, history_length=-1, condition='pure') -> dict:
+    context = shared_context(state, recent, allowed, max_moves=max_moves, history_length=history_length, condition=condition)
     # Definitions occur once, in criteria. Other state fields match chat content.
     criteria = context.pop('criteria')
     return {'model': model, 'state': context, 'questions': {'next_move': {
-        'type': 'choice', 'instructions': INSTRUCTIONS, 'criteria': criteria}}}
+        'type': 'choice', 'instructions': instruction(max_moves), 'criteria': criteria}}}
 
 
 def parse_response(raw: dict, allowed: tuple[str, ...]) -> tuple[str, float | None]:
@@ -58,7 +59,8 @@ def parse_response(raw: dict, allowed: tuple[str, ...]) -> tuple[str, float | No
 
 class DecisionsAdapter(OpenRouterAdapter):
     def request(self, state, recent, allowed):
-        return URL, build_request(self.model.id, state, recent, allowed)
+        return URL, build_request(self.model.id, state, recent, allowed, max_moves=self.settings.max_moves,
+                                  history_length=self.settings.history_length, condition=self.settings.condition)
 
     def parse(self, raw, allowed):
         return parse_response(raw, allowed)

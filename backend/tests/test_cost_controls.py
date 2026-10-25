@@ -56,7 +56,7 @@ def test_fixed_claude_contract_and_identical_information(tmp_path):
         assert reconstructed == user
         assert body['questions']['next_move']['instructions'] == INSTRUCTIONS
     assert user['recent_moves'] == history and user['moves_remaining'] == 23
-    assert set(user) == {'cube_facelets', 'recent_moves', 'goal_facelets', 'moves_remaining', 'metric', 'criteria'}
+    assert {'cube_facelets', 'recent_moves', 'goal_facelets', 'moves_remaining', 'metric', 'criteria', 'faces', 'net', 'correct_facelets'} <= set(user)
     assert len(user['criteria']) == 18 and user['goal_facelets'] == solved_state()
     assert 'scramble' not in json.dumps(user) and 'solution' not in json.dumps(user)
     for bad in ('none', 'disabled'):

@@ -70,6 +70,7 @@ async def local_only_mutations(request: Request, call_next):
 async def configuration():
     return {'models': [m.model_dump() for m in MODELS], 'mock': settings.mock_models,
             'student_name': settings.student_name, 'roll_number': settings.roll_number,
+            'condition': settings.condition, 'history_length': settings.history_length,
             'max_moves': settings.max_moves, 'game_timeout_s': settings.game_timeout_s,
             'max_retries': settings.max_retries, 'claude_reasoning_effort': settings.claude_reasoning_effort,
             'claude_max_tokens': settings.claude_max_tokens,

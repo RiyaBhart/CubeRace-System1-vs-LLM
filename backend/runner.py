@@ -29,13 +29,15 @@ async def run_game(model: ModelConfig, adapter: ModelAdapter, start_state: str, 
                    smoke: bool = False) -> GameResult:
     result = GameResult(attempt_id=f'{puzzle_id}:{repeat}:{model.key}', run_id=run_id,
         model=model.key, model_id=model.id, model_name=model.name, category=model.category,
-        mock=config.mock_models, diagnostic=smoke, puzzle_id=puzzle_id, seed=seed, scramble=scramble,
+        mock=config.mock_models, diagnostic=smoke, condition=config.condition,
+        benchmark_set=puzzle_id.split('-')[0], puzzle_id=puzzle_id, seed=seed, scramble=scramble,
         start_state=start_state, final_state=start_state, repeat=repeat, exact_optimal=exact_optimal,
         reference_moves=reference_moves, reference_label='reference, not proven optimal' if reference_moves is not None else None,
-        config={'max_moves': config.max_moves, 'time_limit_s': config.game_timeout_s,
+        config={'presentation_version': 'oriented-color-net-v2', 'max_moves': config.max_moves, 'time_limit_s': config.game_timeout_s,
                 'recent_moves_n': config.recent_moves_n, 'max_retries': config.max_retries,
                 'invalid_consumes_attempt': config.invalid_consumes_attempt,
-                'history_policy': 'complete legal move history',
+                'history_policy': 'all' if config.history_length == -1 else f'last {config.history_length}',
+                'history_length': config.history_length, 'condition': config.condition,
                 'claude_reasoning_effort': config.claude_reasoning_effort,
                 'claude_max_tokens': config.claude_max_tokens})
 
@@ -130,12 +132,14 @@ async def run_game(model: ModelConfig, adapter: ModelAdapter, start_state: str, 
         result.optimality_gap = result.moves_used-exact_optimal
         if result.optimality_gap < 0:
             raise RuntimeError('Negative optimality gap: engine/search invariant violated')
+    from .diagnostics import game_diagnostics
+    result.diagnostics = game_diagnostics(result)
     await event('game_end', {'game': result.model_dump()})
     return result
 
 
 def rank_games(games: list[GameResult]) -> list[GameResult]:
     target = solved_state()
-    return sorted((g for g in games if g.status != 'NOT_RUN' and not g.diagnostic), key=lambda g: (g.status != 'SOLVED',
+    return sorted((g for g in games if g.status != 'NOT_RUN' and not g.diagnostic and g.agent_kind != 'baseline'), key=lambda g: (g.status != 'SOLVED',
         g.moves_used if g.status == 'SOLVED' else -sum(a == b for a, b in zip(g.final_state, target)),
         g.total_time_s, g.model))

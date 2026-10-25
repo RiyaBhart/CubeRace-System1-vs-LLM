@@ -60,6 +60,10 @@ function setBusy(value) {
     "execution",
     "requestCap",
     "liveConsent",
+    "condition",
+    "historyLength",
+    "maxMoves",
+    "baselines",
   ])
     $(id).disabled = value;
 }
@@ -129,7 +133,7 @@ function showPuzzle(p) {
     p.exact_optimal == null ? "N/A" : `${p.exact_optimal} turns`;
   makeCards(p.start_state);
   $("progress").textContent =
-    `Seed ${p.seed}${p.repeat != null ? " · repeat " + (p.repeat + 1) : ""}`;
+    `Condition: ${p.condition || "legacy"} · Seed ${p.seed}${p.repeat != null ? " · repeat " + (p.repeat + 1) : ""}`;
 }
 function handle(kind, p) {
   if (kind === "puzzle") {
@@ -245,7 +249,7 @@ async function preview() {
   const p = await api(
     `/api/puzzle?seed=${encodeURIComponent($("seed").value)}&length=${encodeURIComponent($("length").value)}`,
   );
-  showPuzzle(p);
+  showPuzzle({...p, condition: $("condition").value});
 }
 function view(stats) {
   $("raceView").hidden = stats;
@@ -260,7 +264,7 @@ async function refreshRuns() {
   for (const run of runs)
     $("savedRuns").add(
       new Option(
-        `${run.mock ? "[MOCK]" : "[LIVE]"} ${run.run_id} · ${run.games} games`,
+        `${run.mock ? "[MOCK]" : "[LIVE]"} [${run.condition || "legacy"}] ${run.run_id} · ${run.games} games`,
         run.run_id,
       ),
     );
@@ -269,9 +273,11 @@ async function refreshRuns() {
 async function selectRun(id) {
   savedData = await api(`/api/runs/${encodeURIComponent(id)}`);
   latestData = savedData;
+  $("progress").textContent = `Recording condition: ${savedData.metadata.condition || "legacy"} · ${savedData.metadata.set}`;
   $("modeBadge").textContent = savedData.metadata.mock
     ? "SYNTHETIC RECORDING"
     : "LIVE RECORDING";
+  $("modeBadge").textContent += ` · ${savedData.metadata.condition || "legacy"}`;
   $("export").disabled = false;
   await refreshBilling();
   const keys = [
@@ -301,6 +307,10 @@ async function run() {
     mode: $("runMode").value,
     seed: Number($("seed").value),
     length: Number($("length").value),
+    condition: $("condition").value,
+    max_moves: Number($("maxMoves").value),
+    history_length: Number($("historyLength").value),
+    baselines: $("baselines").checked,
     execution: live ? "live" : "simulated",
     live_approved: false,
     request_cap: live ? Number($("requestCap").value) : null,
@@ -322,7 +332,7 @@ async function run() {
     if (!approved) return;
     request.live_approved = true;
   }
-  $("modeBadge").textContent = live ? "LIVE EXPERIMENT" : "SYNTHETIC MOCK";
+  $("modeBadge").textContent = `${live ? "LIVE EXPERIMENT" : "SYNTHETIC MOCK"} · ${request.condition}`;
   stopReplay();
   view(false);
   setBusy(true);
@@ -403,7 +413,7 @@ function replay() {
   stopReplay();
   const [pid, rep] = $("replayPuzzle").value.split("|");
   const games = savedData.games.filter(
-    (g) => g.puzzle_id === pid && g.repeat === Number(rep),
+    (g) => g.agent_kind !== "baseline" && g.puzzle_id === pid && g.repeat === Number(rep),
   );
   if (!games.length) return;
   view(false);
@@ -536,15 +546,15 @@ function renderStats(data) {
   charts.splice(0).forEach((c) => c.destroy());
   const rows = data.summary;
   $("sampleLabel").textContent =
-    `${data.games.length} attempts · ${data.metadata.mode} · ${data.metadata.mock ? "SYNTHETIC MOCK" : "LIVE API"}`;
+    `${data.metadata.condition || "legacy"} · ${data.metadata.set} · ${data.games.length} scheduled slots · ${data.metadata.mode} · ${data.metadata.mock ? "SYNTHETIC MOCK" : "LIVE API"}`;
   $("summaryRows").replaceChildren();
   $("winners").replaceChildren();
   $("distributions").replaceChildren();
-  const labels = rows.map((r) => r.name);
+  const labels = rows.map((r) => `${r.name} · ${r.condition} · ${r.source}`);
   for (const r of rows) {
     const tr = document.createElement("tr");
     const values = [
-      r.name,
+      `${r.name} · ${r.condition} · ${r.source}`,
       `${fmt(r.avg_latency_ms)} / ${fmt(r.median_latency_ms)} / ${fmt(r.p95_latency_ms)}`,
       fmt(r.avg_latency_incl_retries_ms),
       `${fmt(r.avg_solve_time_s)} / ${fmt(r.total_time_s)}`,
@@ -578,7 +588,7 @@ function renderStats(data) {
     ["Smallest proven gap", "gap_mean", false],
   ]) {
     const eligible = rows.filter(
-      (r) => r[key] != null && r.attempts > 0 && r.unavailable < r.attempts,
+      (r) => r.agent_kind !== "baseline" && r[key] != null && r.attempts > 0 && r.unavailable < r.attempts,
     );
     if (!eligible.length) continue;
     const best = eligible.reduce((a, b) =>
@@ -646,6 +656,9 @@ async function init() {
     $("identity").textContent =
       `Student: ${config.student_name || "NOT CONFIGURED"} | Roll No: ${config.roll_number || "NOT CONFIGURED"}`;
     $("execution").value = "simulated";
+    $("condition").value = config.condition;
+    $("historyLength").value = config.history_length;
+    $("maxMoves").value = config.max_moves;
     if (config.mock)
       $("execution").querySelector('option[value="live"]').disabled = true;
     updateExecution();
@@ -716,7 +729,7 @@ function updateExecution() {
       : Number($("puzzles").value) *
         Number($("repeats").value) *
         4 *
-        30 *
+        Number($("maxMoves").value) *
         (1 + config.max_retries);
   $("recommendedCap").textContent =
     `Recommended cap: ${cap} requests. Claude: ${config.claude_reasoning_effort} effort / ${config.claude_max_tokens} output tokens.`;
@@ -732,7 +745,7 @@ async function refreshBilling() {
 }
 function approveLive(request) {
   $("approvalDescription").textContent =
-    `${request.set}: ${request.puzzles} puzzle(s), ${request.repeats} repeat(s), four assigned models. Hard cap: ${request.request_cap} requests. ${$("recommendedCap").textContent}`;
+    `${request.condition} condition, ${request.max_moves}-move limit, history ${request.history_length}. ${request.set}: ${request.puzzles} puzzle(s), ${request.repeats} repeat(s), four assigned models. Hard cap: ${request.request_cap} requests. ${$("recommendedCap").textContent}`;
   return new Promise((resolve) => {
     const dialog = $("approvalDialog");
     const finish = (approved) => {
@@ -748,11 +761,14 @@ function approveLive(request) {
     dialog.showModal();
   });
 }
+$("condition").onchange = () => {
+  if (!busy) preview().catch((e) => notice(e.message, true));
+};
 $("execution").onchange = () => {
   $("liveConsent").checked = false;
   updateExecution();
 };
-for (const id of ["puzzles", "repeats"]) $(id).onchange = updateExecution;
+for (const id of ["puzzles", "repeats", "maxMoves"]) $(id).onchange = updateExecution;
 $("export").onclick = () => {
   if (!savedData) return;
   const url = URL.createObjectURL(

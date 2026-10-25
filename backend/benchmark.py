@@ -29,6 +29,10 @@ class BenchmarkRequest(BaseModel):
     mode: Literal['concurrent', 'sequential'] = 'concurrent'
     seed: int = Field(104729, ge=0, le=2**32-1)
     length: int = Field(4, ge=1, le=20)
+    condition: Literal['pure', 'assisted'] = Field(default_factory=lambda: settings.condition)
+    history_length: int = Field(default_factory=lambda: settings.history_length, ge=-1, le=30)
+    max_moves: int | None = Field(None, ge=1, le=30)
+    baselines: bool = False
     execution: Literal['simulated', 'live'] = 'simulated'
     live_approved: bool = False
     request_cap: int | None = Field(None, ge=1, le=10_000_000)
@@ -43,7 +47,7 @@ class BenchmarkRequest(BaseModel):
 
 
 def recommended_cap(request: BenchmarkRequest, config: Settings) -> int:
-    return 4 if request.set == 'smoke' else request.puzzles * request.repeats * len(MODELS) * 30 * (1+config.max_retries)
+    return 4 if request.set == 'smoke' else request.puzzles * request.repeats * len(MODELS) * (request.max_moves or config.max_moves) * (1+config.max_retries)
 
 
 def run_settings(request: BenchmarkRequest, config: Settings) -> Settings:
@@ -55,7 +59,9 @@ def run_settings(request: BenchmarkRequest, config: Settings) -> Settings:
         if not config.openrouter_api_key.get_secret_value():
             raise PermissionError('No API key configured')
     return config.model_copy(update={'mock_models': request.execution != 'live',
-        'max_retries': 0 if request.set == 'smoke' else config.max_retries})
+        'max_retries': 0 if request.set == 'smoke' else config.max_retries,
+        'condition': request.condition, 'history_length': request.history_length,
+        'max_moves': request.max_moves or config.max_moves})
 
 
 def new_run_id() -> str:
@@ -73,12 +79,13 @@ async def execute(request: BenchmarkRequest, config: Settings, run_id: str,
         'game_timeout_s': config.game_timeout_s, 'request_timeout_s': config.request_timeout_s,
         'recent_moves_n': config.recent_moves_n, 'max_retries': config.max_retries,
         'claude_reasoning_effort': config.claude_reasoning_effort, 'claude_max_tokens': config.claude_max_tokens,
-        'history_policy': 'complete legal move history',
+        'history_policy': 'all' if config.history_length == -1 else str(config.history_length),
+        'history_length': config.history_length, 'condition': config.condition,
         'invalid_consumes_attempt': config.invalid_consumes_attempt, 'retry_backoff_s': config.retry_backoff_s,
         'bfs_depth': config.bfs_depth, 'exact_max_depth': config.exact_max_depth,
         'exact_node_budget': config.exact_node_budget, 'use_kociemba': config.use_kociemba}
     metadata = {'run_id': run_id, 'set': request.set, 'mode': request.mode,
-                'mock': config.mock_models, 'fingerprint': fingerprint,
+                'mock': config.mock_models, 'condition': config.condition, 'fingerprint': fingerprint,
                 'recommended_request_cap': recommended_cap(request, config)}
     store = await asyncio.to_thread(Store, config.results_dir, run_id, metadata)
     if store.metadata.get('fingerprint') != fingerprint:
@@ -119,7 +126,7 @@ async def execute(request: BenchmarkRequest, config: Settings, run_id: str,
                 pending = pending[offset:] + pending[:offset]
                 if emit:
                     await emit('puzzle', {'puzzle_id': puzzle_id, 'seed': seed, 'scramble': scramble,
-                        'start_state': state, 'exact_optimal': exact, 'repeat': repeat,
+                        'start_state': state, 'exact_optimal': exact, 'repeat': repeat, 'condition': config.condition,
                         'completed_games': [g.model_dump() for g in store.games if g.puzzle_id == puzzle_id and g.repeat == repeat]})
 
                 async def play(model):
@@ -143,6 +150,29 @@ async def execute(request: BenchmarkRequest, config: Settings, run_id: str,
                 else:
                     for model in pending:
                         game = await play(model)
+                        await asyncio.to_thread(persist, game)
+                        completed.add(game.attempt_id)
+                if request.baselines and request.set != 'smoke':
+                    from .baselines import BaselineAdapter
+                    from .config import ModelConfig
+                    from .schemas import GameResult
+                    for policy in ('oracle', 'random', 'greedy'):
+                        if f'{puzzle_id}:{repeat}:{policy}' in completed:
+                            continue
+                        model = ModelConfig(key=policy, name=policy.title() + ' (offline baseline)',
+                            category='DECISION MODEL', id=f'offline/{policy}', endpoint='decisions')
+                        if policy == 'oracle' and exact is None:
+                            game = GameResult(attempt_id=f'{puzzle_id}:{repeat}:{policy}', run_id=run_id,
+                                model=policy, model_id=model.id, model_name=model.name, category='BASELINE',
+                                mock=True, puzzle_id=puzzle_id, repeat=repeat, seed=seed, scramble=scramble,
+                                start_state=state, final_state=state, status='NOT_RUN',
+                                condition=config.condition, benchmark_set=request.set,
+                                error='Exact oracle outside proven search coverage')
+                        else:
+                            game = await run_game(model, BaselineAdapter(policy, seed+repeat, solver), state,
+                                config=config.model_copy(update={'mock_models': True}), run_id=run_id,
+                                puzzle_id=puzzle_id, seed=seed, scramble=scramble, repeat=repeat, exact_optimal=exact)
+                        game.agent_kind, game.category = 'baseline', 'BASELINE'
                         await asyncio.to_thread(persist, game)
                         completed.add(game.attempt_id)
                 if emit:
@@ -174,6 +204,10 @@ def main():
     parser.add_argument('--mode', choices=['concurrent', 'sequential'], default='sequential')
     parser.add_argument('--seed', type=int, default=SEEDS[0])
     parser.add_argument('--length', type=int, default=4)
+    parser.add_argument('--condition', choices=['pure', 'assisted', 'both'], default=settings.condition)
+    parser.add_argument('--history-length', type=int, default=settings.history_length, help='-1 all, 0 none, otherwise last N')
+    parser.add_argument('--max-moves', type=int, default=None)
+    parser.add_argument('--baselines', action='store_true', help='Include offline oracle/random/greedy controls')
     parser.add_argument('--resume', metavar='RUN_ID')
     parser.add_argument('--debug-probe', action='store_true')
     parser.add_argument('--approve-live', action='store_true', help='Explicitly approve inference charges for this run')
@@ -191,14 +225,24 @@ def main():
         asyncio.run(debug_probe(settings, approved=True))
         return
     count = args.puzzles if args.puzzles is not None else {'warmup': 2, 'primary': 10, 'extension': 5, 'race': 1, 'smoke': 1}[args.set]
-    request = BenchmarkRequest(set=args.set, puzzles=count, repeats=args.repeats, mode=args.mode, seed=args.seed,
+    if args.condition == 'both' and args.resume:
+        parser.error('Resume one condition at a time')
+    request = BenchmarkRequest(condition='pure' if args.condition == 'both' else args.condition,
+        history_length=args.history_length, max_moves=args.max_moves, baselines=args.baselines, set=args.set, puzzles=count, repeats=args.repeats, mode=args.mode, seed=args.seed,
         length=args.length, execution='live' if args.approve_live else 'simulated',
         live_approved=args.approve_live, request_cap=args.request_cap)
     run_settings(request, settings)  # validate before building cache or any network access
     solver = ExactSolver(settings.bfs_depth, settings.results_dir / 'cache' / f'bfs-{settings.bfs_depth}.pickle', settings.exact_node_budget)
     run_id = args.resume or new_run_id()
-    store = asyncio.run(execute(request, settings, run_id, solver))
-    print(f'Results: {store.path}\nReport: {settings.results_dir / "report.md"}')
+    paths = []
+    for condition in (('pure', 'assisted') if args.condition == 'both' else (args.condition,)):
+        current = request.model_copy(update={'condition': condition})
+        store = asyncio.run(execute(current, settings, run_id if args.condition != 'both' else new_run_id(), solver))
+        paths.append(store.path)
+        print(f'Results ({condition}): {store.path}')
+    if len(paths) == 2:
+        from .diagnostics import comparison_report
+        print(comparison_report([g for path in paths for g in Store(settings.results_dir, path.stem).games]))
 
 
 if __name__ == '__main__':

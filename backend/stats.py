@@ -13,9 +13,9 @@ def average(values):
 def aggregate(games: list[GameResult]) -> list[dict]:
     groups = defaultdict(list)
     for game in games:
-        groups[game.model].append(game)
+        groups[(game.model, game.condition, game.benchmark_set, game.mock, game.agent_kind)].append(game)
     output = []
-    for key, attempts in groups.items():
+    for (key, condition, benchmark_set, mock, agent_kind), attempts in groups.items():
         scheduled = len(attempts)
         not_run = sum(g.status == 'NOT_RUN' for g in attempts)
         smoke_n = sum(g.diagnostic or g.status == 'SMOKE_TEST' for g in attempts)
@@ -29,6 +29,8 @@ def aggregate(games: list[GameResult]) -> list[dict]:
         gaps = [g.optimality_gap for g in solved if g.optimality_gap is not None]
         lengths = sorted({len(g.scramble) for g in attempts})
         output.append({'model': key, 'name': name, 'category': category,
+            'condition': condition, 'benchmark_set': benchmark_set, 'agent_kind': agent_kind,
+            'source': 'OFFLINE BASELINE' if agent_kind == 'baseline' else 'SIMULATED' if mock else 'LIVE',
             'mock': mock, 'scheduled': scheduled, 'not_run': not_run, 'smoke_tests': smoke_n,
             'attempts': len(attempts), 'solved': len(solved),
             'unsolved': len(attempts)-len(solved), 'unavailable': sum(g.status == 'UNAVAILABLE' for g in attempts),
@@ -55,6 +57,14 @@ def fmt(value, suffix='') -> str:
 
 
 def analysis_answers(rows: list[dict]) -> list[str]:
+    rows = [r for r in rows if r.get('agent_kind') != 'baseline']
+    strata = {(r.get('condition'), r.get('benchmark_set'), r.get('mock')) for r in rows}
+    if len(strata) > 1:
+        answers = []
+        for condition, benchmark_set, mock in sorted(strata):
+            subset = [r for r in rows if (r.get('condition'), r.get('benchmark_set'), r.get('mock')) == (condition, benchmark_set, mock)]
+            answers.extend(f'{benchmark_set} / {condition}: {a}' for a in analysis_answers(subset))
+        return answers
     if rows and all(r['attempts'] == 0 for r in rows):
         return ['No completed benchmark trials are available; smoke diagnostics and NOT_RUN slots do not establish a model winner.'] * 5
     measured = [r for r in rows if r['avg_latency_ms'] is not None and r['unavailable'] < r['attempts']]
@@ -93,6 +103,7 @@ def analysis_answers(rows: list[dict]) -> list[str]:
 
 def make_report(games: list[GameResult], metadata: dict) -> str:
     rows = aggregate(games)
+    from .diagnostics import comparison_report
     lines = ['# Rubik\'s Cube Race — measured results', '',
              '**SYNTHETIC MOCK DATA — not model performance evidence.**' if metadata.get('mock') else 'Live OpenRouter measurements.',
              '', f"Run: {metadata.get('run_id')} | Mode: {metadata.get('mode')} | Set: {metadata.get('set')}", '',
@@ -100,6 +111,7 @@ def make_report(games: list[GameResult], metadata: dict) -> str:
              '|---|---:|---:|---:|---:|---:|---:|']
     for r in rows:
         lines.append(f"| {r['name']} | {r['solved']}/{r['attempts']} | {fmt(r['avg_latency_ms'])} / {fmt(r['median_latency_ms'])} / {fmt(r['p95_latency_ms'])} | {fmt(r['avg_solve_time_s'])} | {fmt(r['avg_solved_moves'])} | {fmt(r['gap_mean'])} / {fmt(r['gap_median'])} | {r['invalid_count']} / {r['retry_count']} |")
+    lines += ['', '## Condition-separated comparison (baseline timings are local CPU timings)', '', comparison_report(games)]
     for n, answer in enumerate(analysis_answers(rows), 1):
         lines += ['', f'## {n}. Required analysis', '', answer]
     lines += ['', '## Definitions and distributions', '',

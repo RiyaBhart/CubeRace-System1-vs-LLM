@@ -605,6 +605,13 @@ dialog p {
   color: var(--muted);
   margin-top: 4px;
 }
+.failure-note {
+  color: var(--red);
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 0 20px 16px;
+  overflow-wrap: anywhere;
+}
 .charts > article,
 .distributions > article {
   min-width: 0;

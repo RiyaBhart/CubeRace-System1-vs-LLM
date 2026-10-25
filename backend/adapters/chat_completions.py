@@ -5,7 +5,12 @@ URL = 'https://openrouter.ai/api/v1/chat/completions'
 
 
 def parse_response(raw: dict, allowed: tuple[str, ...]) -> tuple[str, None]:
-    content = raw['choices'][0]['message']['content']
+    choice = raw['choices'][0]
+    if choice.get('finish_reason') == 'length' or choice.get('native_finish_reason') == 'max_tokens':
+        raise ValueError('Completion token ceiling reached before a complete move; no retry or limit increase was performed')
+    content = choice['message']['content']
+    if not isinstance(content, str) or not content.strip():
+        raise ValueError('Model returned no move JSON')
     # Strict parsing remains mandatory even if a provider violates the schema.
     parsed = json.loads(content)
     if not isinstance(parsed, dict) or set(parsed) != {'move'}:

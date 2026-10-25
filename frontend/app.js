@@ -202,6 +202,19 @@ function handle(kind, p) {
   }
   if (kind === "game_end") {
     const g = p.game;
+    let failureNote = card.el.querySelector(".failure-note");
+    if (!failureNote) {
+      failureNote = document.createElement("p");
+      failureNote.className = "failure-note";
+      card.el.append(failureNote);
+    }
+    const truncated = g.status !== "SOLVED" && g.records.some(r =>
+      (r.response.calls || []).some(c => (c.raw_response?.choices || []).some(choice =>
+        choice.finish_reason === "length" || choice.native_finish_reason === "max_tokens")));
+    failureNote.textContent = truncated
+      ? "The model hit its completion-token limit before returning a complete move. The failed call may still be billed."
+      : g.error || "";
+    failureNote.hidden = !failureNote.textContent;
     card.active = false;
     card.elapsed = g.total_time_s;
     card.game = g;

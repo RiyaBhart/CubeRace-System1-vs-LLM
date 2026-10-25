@@ -63,6 +63,12 @@ in the ignored backend .env; its value is not included in source, logs or archiv
 Model-specific verification requires the user's explicitly approved smoke run.
 Optional Kociemba installation remains unverified.
 
+A subsequent user-approved smoke response reached Claude but exhausted all 512
+completion tokens on reasoning without producing a move. At the user's explicit
+choice, the ceiling remains 512 and no paid retest was started. Targeted offline
+adapter/runner regression tests cover clear truncation reporting and failed-smoke
+status. The earlier 102-test full-suite result predates these two added cases.
+
 ## Reproduce without spending
 
 1. Install requirements in a virtual environment; enter student identity in .env.

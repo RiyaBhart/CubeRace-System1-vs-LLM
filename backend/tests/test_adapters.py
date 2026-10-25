@@ -38,6 +38,14 @@ def test_chat_strict_json(content):
         parse_chat({'choices':[{'message':{'content':content}}]},MOVES)
 
 
+def test_chat_truncation_is_explicit_and_never_applies_partial_output():
+    for content in (None, '{"move":"R"}'):
+        with pytest.raises(ValueError, match='token ceiling reached'):
+            parse_chat({'choices':[{'finish_reason':'length', 'message':{'content':content}}]},MOVES)
+    with pytest.raises(ValueError, match='no move JSON'):
+        parse_chat({'choices':[{'message':{'content':None}}]},MOVES)
+
+
 def test_same_information():
     request = build_request(MODELS[0].id,solved_state(),['R'],MOVES)
     chat_context = shared_context(solved_state(),['R'],MOVES)

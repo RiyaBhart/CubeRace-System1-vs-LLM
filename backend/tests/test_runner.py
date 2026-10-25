@@ -103,3 +103,13 @@ async def test_rank_solved_first():
     not_run=bad.model_copy(update={'status':'NOT_RUN'})
     diagnostic=good.model_copy(update={'diagnostic':True})
     assert rank_games([not_run,diagnostic])==[]
+
+
+@pytest.mark.asyncio
+async def test_invalid_smoke_is_error_and_uses_one_attempt():
+    adapter=Scripted([AdapterResult(error='Completion token ceiling reached',invalid_outputs=1), 'R'])
+    result=await run_game(MODELS[0],adapter,apply_move(solved_state(),'R'),
+        config=Settings(_env_file=None,mock_models=True),run_id='test',puzzle_id='p',seed=1,
+        scramble=['R'],smoke=True)
+    assert result.status=='ERROR' and result.diagnostic
+    assert adapter.calls==1 and result.moves_used==0

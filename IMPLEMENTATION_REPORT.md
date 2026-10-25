@@ -94,6 +94,17 @@ live success is not asserted. Historical failed trials remain unchanged.
 
 Source: [Anthropic Opus 5.5 migration guide](https://platform.claude.com/docs/en/models/opus-5-5/migration-guide).
 
+## Observed completion-ceiling failure
+
+A later user-approved smoke request reached Claude successfully (HTTP 200) but
+returned finish_reason=length, null move content and 512 reasoning tokens out of
+512 completion tokens. Reported usage was 848 prompt tokens, 1,360 total tokens
+and USD 0.013632. This is a single recorded call, not a model-wide cost estimate.
+The user explicitly chose to retain the 512-token ceiling and avoid further
+spending. No ceiling/effort change or paid retest was made. Truncation and missing
+move JSON now have explicit parse errors shown on the card; an invalid smoke
+ends ERROR rather than being labeled SMOKE_TEST. Original trial data are retained.
+
 ## Historical model behavior (pre-optimization, not a new test)
 
 The existing recording `20261025T211204-6daec4a2` contains 30 legal moves each

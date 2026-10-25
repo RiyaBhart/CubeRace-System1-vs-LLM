@@ -112,7 +112,7 @@ async def run_game(model: ModelConfig, adapter: ModelAdapter, start_state: str, 
                 result.status = 'BUDGET_EXHAUSTED' if response.budget_exhausted else 'ERROR'
                 break
             if smoke:
-                result.status = 'SMOKE_TEST'
+                result.status = 'SMOKE_TEST' if valid else 'ERROR'
                 break
         if is_solved(state):
             result.status = 'SOLVED'

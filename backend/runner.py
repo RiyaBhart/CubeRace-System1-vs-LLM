@@ -8,6 +8,7 @@ from .config import ModelConfig, Settings
 from .cube_engine import MOVES, apply_move, is_solved, solved_state
 from .schemas import AdapterResult, GameResult, MoveRecord
 from .accounting import summarize_usage
+from .presentation import PRESENTATION_VERSION
 
 EventSink = Callable[[str, dict], Awaitable[None]]
 
@@ -33,7 +34,7 @@ async def run_game(model: ModelConfig, adapter: ModelAdapter, start_state: str, 
         benchmark_set=puzzle_id.split('-')[0], puzzle_id=puzzle_id, seed=seed, scramble=scramble,
         start_state=start_state, final_state=start_state, repeat=repeat, exact_optimal=exact_optimal,
         reference_moves=reference_moves, reference_label='reference, not proven optimal' if reference_moves is not None else None,
-        config={'presentation_version': 'oriented-color-net-v2', 'max_moves': config.max_moves, 'time_limit_s': config.game_timeout_s,
+        config={'presentation_version': PRESENTATION_VERSION, 'max_moves': config.max_moves, 'time_limit_s': config.game_timeout_s,
                 'recent_moves_n': config.recent_moves_n, 'max_retries': config.max_retries,
                 'invalid_consumes_attempt': config.invalid_consumes_attempt,
                 'history_policy': 'all' if config.history_length == -1 else f'last {config.history_length}',

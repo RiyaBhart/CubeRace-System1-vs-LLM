@@ -1,6 +1,7 @@
 """Shared decision information; this module never imports an exact solver."""
 from .cube_engine import FACES, DEFINITIONS, apply_move, pretty_net, solved_state
 
+PRESENTATION_VERSION = 'oriented-color-net-v3'
 COLORS = dict(zip(FACES, ('white', 'red', 'green', 'yellow', 'orange', 'blue')))
 # Top and right edge neighbours fix each externally viewed face orientation.
 ORIENTATION = {'U': ('B', 'R'), 'R': ('U', 'B'), 'F': ('U', 'R'),
@@ -30,7 +31,8 @@ def shared_context(state, recent_moves, allowed_moves, *, max_moves=30, history_
         'centers': 'Centers never move and define each face color.', 'colors': COLORS,
         'faces': faces, 'net_layout': 'U above F; L F R B across; D below F. All rows viewed from outside.',
         'net': pretty_net(state), 'correct_facelets': {'per_face': correct, 'total': sum(correct.values()), 'of': 54},
-        'criteria': {m: DEFINITIONS[m] for m in allowed_moves}}
+        # Outside-face wording adapted from Srijaali/ai-engineering; see THIRD_PARTY.md.
+        'criteria': {m: DEFINITIONS[m] + ', viewed directly from outside that face.' for m in allowed_moves}}
     def row(face, r):
         i = FACES.index(face)*9+r*3
         return ' '.join(COLORS[c] for c in state[i:i+3])

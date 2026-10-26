@@ -326,3 +326,12 @@ half-turn self-inverses), consecutive identical moves, parse failures, invalid-o
 rate over completed calls, HTTP errors and optionally full saved raw responses.
 Legacy recordings are labeled `legacy`; do not relabel them as the new Pure condition.
 The pipeline review lists observed failures, fixes, assumptions and offline evidence.
+
+
+## Reference adaptation and interface
+
+See THIRD_PARTY.md for the permission confirmation, reviewed revision and precise
+source attribution. The independent blue lab theme keeps the permanent student
+banner and existing controls. No third-party credentials or benchmark evidence
+were imported. Duplicate JSON action keys are now rejected instead of silently
+keeping the last value. No paid inference was run for this adaptation.

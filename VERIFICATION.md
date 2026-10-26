@@ -93,3 +93,12 @@ Final offline verification: 115 pytest tests passed (one upstream AnyIO deprecat
 Paired five-puzzle primary simulations plus offline controls completed under both conditions.
 Browser verified Assisted selection, completion and seven separately labeled dashboard rows.
 Live request ledger stayed at 598/604 during this verification; no budget changes were made.
+
+
+## Reference reuse and independent blue interface
+
+116 offline pytest tests passed, one upstream AnyIO deprecation warning.
+Browser verified permanent identity, free-by-default controls and the new theme.
+Health endpoint returned ok after restarting the local server. Persistent live
+usage remains 604/604. No paid calls or budget increases were performed.
+See THIRD_PARTY.md for permission confirmation and exact reused portions.

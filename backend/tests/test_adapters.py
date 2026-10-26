@@ -111,3 +111,9 @@ async def test_recorded_authentication_failure(approved):
     async with httpx.AsyncClient(transport=httpx.MockTransport(lambda r:httpx.Response(fixture['http_status'],json=fixture['raw']))) as client:
         result=await approved(DecisionsAdapter,MODELS[0],client,Settings(_env_file=None)).get_move(solved_state(),[],MOVES)
     assert result.unavailable and result.retries_used==0 and result.invalid_outputs==0
+
+
+def test_duplicate_move_keys_are_rejected():
+    # JSON's default decoder would silently retain the second move.
+    with pytest.raises(ValueError, match='Duplicate JSON key'):
+        parse_chat({'choices': [{'message': {'content': '{"move":"R","move":"U"}'}}]}, MOVES)

@@ -5,6 +5,16 @@ from ..presentation import instruction
 URL = 'https://openrouter.ai/api/v1/chat/completions'
 
 
+def unique_object(pairs):
+    """Reject duplicate keys. Adapted with permission; see THIRD_PARTY.md."""
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError('Duplicate JSON key')
+        result[key] = value
+    return result
+
+
 def parse_response(raw: dict, allowed: tuple[str, ...]) -> tuple[str, None]:
     choice = raw['choices'][0]
     if choice.get('finish_reason') == 'length' or choice.get('native_finish_reason') == 'max_tokens':
@@ -13,7 +23,7 @@ def parse_response(raw: dict, allowed: tuple[str, ...]) -> tuple[str, None]:
     if not isinstance(content, str) or not content.strip():
         raise ValueError('Model returned no move JSON')
     # Strict parsing remains mandatory even if a provider violates the schema.
-    parsed = json.loads(content)
+    parsed = json.loads(content, object_pairs_hook=unique_object)
     if not isinstance(parsed, dict) or set(parsed) != {'move'}:
         raise ValueError('Expected exactly one move property')
     if not isinstance(parsed['move'], str) or parsed['move'] not in allowed:

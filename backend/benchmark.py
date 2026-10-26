@@ -16,6 +16,7 @@ from .optimal import ExactSolver, SearchLimit, reference_solution
 from .runner import EventSink, rank_games, run_game
 from .scramble import puzzle
 from .storage import Store
+from .presentation import PRESENTATION_VERSION
 from .transport import adapter_for, create_client, warmup
 
 SEEDS = (104729, 130363, 155921, 181081, 206369, 232003, 257053, 282413, 307939, 333667)
@@ -74,7 +75,7 @@ async def execute(request: BenchmarkRequest, config: Settings, run_id: str,
     config = run_settings(request, config)
     ledger = None if config.mock_models else await asyncio.to_thread(Ledger, config.results_dir, config.live_request_limit)
     permit = None if ledger is None else await asyncio.to_thread(ledger.approve, run_id, request.request_cap)
-    fingerprint = {'request': request.model_dump(), 'mock': config.mock_models,
+    fingerprint = {'presentation_version': PRESENTATION_VERSION, 'request': request.model_dump(), 'mock': config.mock_models,
         'models': [m.model_dump() for m in MODELS], 'max_moves': config.max_moves,
         'game_timeout_s': config.game_timeout_s, 'request_timeout_s': config.request_timeout_s,
         'recent_moves_n': config.recent_moves_n, 'max_retries': config.max_retries,

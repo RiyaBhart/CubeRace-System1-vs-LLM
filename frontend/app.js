@@ -8,7 +8,7 @@ const colors = {
   L: "#f2944b",
   B: "#568ef0",
 };
-const accents = ["#a7f06b", "#79b8ff", "#e5a0f0", "#ffc078"];
+const accents = ["#80b5ff", "#67d4cf", "#c2a0f8", "#f2bb73"];
 let config,
   source,
   busy = false,

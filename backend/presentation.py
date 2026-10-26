@@ -1,7 +1,7 @@
 """Shared decision information; this module never imports an exact solver."""
-from .cube_engine import FACES, DEFINITIONS, apply_move, pretty_net, solved_state
+from .cube_engine import FACES, MOVES, DEFINITIONS, apply_move, pretty_net, solved_state
 
-PRESENTATION_VERSION = 'oriented-color-net-v3'
+PRESENTATION_VERSION = 'oriented-color-net-v4'
 COLORS = dict(zip(FACES, ('white', 'red', 'green', 'yellow', 'orange', 'blue')))
 # Top and right edge neighbours fix each externally viewed face orientation.
 ORIENTATION = {'U': ('B', 'R'), 'R': ('U', 'B'), 'F': ('U', 'R'),
@@ -10,10 +10,11 @@ INSTRUCTIONS = ('Choose one move toward the goal. Facelets: row-major URFDLB, fi
                 'Singmaster turns: clockwise viewed directly at the named face. '
                 'Half-turn metric (HTM): 180 degrees counts as one move. Limit: 30 moves. '
                 'Avoid immediately undoing the previous move unless you have a reason. '
+                'Select only from the offered move criteria. '
                 'Return one legal move; do not output explanations.')
 
 
-def shared_context(state, recent_moves, allowed_moves, *, max_moves=30, history_length=-1, condition='pure'):
+def shared_context(state, recent_moves, allowed_moves, *, max_moves=30, history_length=-1, condition='pure', attempts_used=None):
     if condition not in ('pure', 'assisted'):
         raise ValueError('Unknown experimental condition')
     history = recent_moves if history_length == -1 else recent_moves[-history_length:] if history_length else []
@@ -26,7 +27,11 @@ def shared_context(state, recent_moves, allowed_moves, *, max_moves=30, history_
         correct[face] = stickers.count(face)
     context = {'cube_facelets': state, 'recent_moves': list(history),
         'history_policy': 'all' if history_length == -1 else f'last {history_length} legal moves',
-        'goal_facelets': solved_state(), 'moves_remaining': max(0, max_moves-len(recent_moves)),
+        'goal_facelets': solved_state(), 'moves_remaining': max(0, max_moves-(len(recent_moves) if attempts_used is None else attempts_used)),
+        'moves_applied': len(recent_moves),
+        'attempts_used': len(recent_moves) if attempts_used is None else attempts_used,
+        'offered_moves': list(allowed_moves),
+        'score_note': 'Correct facelet counts are not distance; solving can require decreasing them.',
         'metric': 'HTM', 'condition': condition,
         'centers': 'Centers never move and define each face color.', 'colors': COLORS,
         'faces': faces, 'net_layout': 'U above F; L F R B across; D below F. All rows viewed from outside.',
@@ -42,7 +47,7 @@ def shared_context(state, recent_moves, allowed_moves, *, max_moves=30, history_
         ['                  D: ' + row('D', r) for r in range(3)])
     if condition == 'assisted':
         context['one_step_correct_facelets'] = {
-            m: sum(a == b for a, b in zip(apply_move(state, m), solved_state())) for m in allowed_moves}
+            m: sum(a == b for a, b in zip(apply_move(state, m), solved_state())) for m in MOVES}
     return context
 
 

@@ -34,6 +34,7 @@ class BenchmarkRequest(BaseModel):
     history_length: int = Field(default_factory=lambda: settings.history_length, ge=-1, le=30)
     max_moves: int | None = Field(None, ge=1, le=30)
     baselines: bool = False
+    loop_avoidance: bool = True
     execution: Literal['simulated', 'live'] = 'simulated'
     live_approved: bool = False
     request_cap: int | None = Field(None, ge=1, le=10_000_000)
@@ -62,6 +63,7 @@ def run_settings(request: BenchmarkRequest, config: Settings) -> Settings:
     return config.model_copy(update={'mock_models': request.execution != 'live',
         'max_retries': 0 if request.set == 'smoke' else config.max_retries,
         'condition': request.condition, 'history_length': request.history_length,
+        'loop_avoidance': request.loop_avoidance,
         'max_moves': request.max_moves or config.max_moves})
 
 
@@ -81,12 +83,15 @@ async def execute(request: BenchmarkRequest, config: Settings, run_id: str,
         'recent_moves_n': config.recent_moves_n, 'max_retries': config.max_retries,
         'claude_reasoning_effort': config.claude_reasoning_effort, 'claude_max_tokens': config.claude_max_tokens,
         'history_policy': 'all' if config.history_length == -1 else str(config.history_length),
-        'history_length': config.history_length, 'condition': config.condition,
+        'history_length': config.history_length, 'condition': config.condition, 'loop_avoidance': config.loop_avoidance,
+        'truncation_policy': 'stop_game_error',
         'invalid_consumes_attempt': config.invalid_consumes_attempt, 'retry_backoff_s': config.retry_backoff_s,
         'bfs_depth': config.bfs_depth, 'exact_max_depth': config.exact_max_depth,
         'exact_node_budget': config.exact_node_budget, 'use_kociemba': config.use_kociemba}
     metadata = {'run_id': run_id, 'set': request.set, 'mode': request.mode,
-                'mock': config.mock_models, 'condition': config.condition, 'fingerprint': fingerprint,
+                'mock': config.mock_models, 'condition': config.condition,
+                'action_policy': 'avoid_visited' if config.condition == 'assisted' and config.loop_avoidance else 'unrestricted',
+                'fingerprint': fingerprint,
                 'recommended_request_cap': recommended_cap(request, config)}
     store = await asyncio.to_thread(Store, config.results_dir, run_id, metadata)
     if store.metadata.get('fingerprint') != fingerprint:
@@ -209,6 +214,7 @@ def main():
     parser.add_argument('--history-length', type=int, default=settings.history_length, help='-1 all, 0 none, otherwise last N')
     parser.add_argument('--max-moves', type=int, default=None)
     parser.add_argument('--baselines', action='store_true', help='Include offline oracle/random/greedy controls')
+    parser.add_argument('--no-loop-avoidance', action='store_true', help='Assisted ablation without the visited-state filter')
     parser.add_argument('--resume', metavar='RUN_ID')
     parser.add_argument('--debug-probe', action='store_true')
     parser.add_argument('--approve-live', action='store_true', help='Explicitly approve inference charges for this run')
@@ -229,7 +235,7 @@ def main():
     if args.condition == 'both' and args.resume:
         parser.error('Resume one condition at a time')
     request = BenchmarkRequest(condition='pure' if args.condition == 'both' else args.condition,
-        history_length=args.history_length, max_moves=args.max_moves, baselines=args.baselines, set=args.set, puzzles=count, repeats=args.repeats, mode=args.mode, seed=args.seed,
+        history_length=args.history_length, max_moves=args.max_moves, loop_avoidance=not args.no_loop_avoidance, baselines=args.baselines, set=args.set, puzzles=count, repeats=args.repeats, mode=args.mode, seed=args.seed,
         length=args.length, execution='live' if args.approve_live else 'simulated',
         live_approved=args.approve_live, request_cap=args.request_cap)
     run_settings(request, settings)  # validate before building cache or any network access

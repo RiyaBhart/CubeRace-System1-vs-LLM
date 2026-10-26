@@ -122,3 +122,10 @@ API constraints, paired offline comparison, and provenance limitations. No paid
 inference was run by the agent for this update. The full updated suite passed
 115 tests before final configuration/documentation edits; final verification is
 recorded below after those edits.
+
+
+## State-loop and paid-repeat investigation
+
+See LOOP_FIX_REVIEW.md for the latest saved Pure race, real revisit counts,
+provider key-limit evidence, Assisted-only filter, correct remaining-attempt
+prompt budget, and technical truncation stop. No new paid calls were made.

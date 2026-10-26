@@ -55,15 +55,17 @@
             <option value="live">Live · paid API</option>
           </select></label
         >
-        <label>New run condition<select id="condition"><option value="pure">A · Pure</option><option value="assisted">B · Assisted (one-step scores)</option></select></label>
+        <label>New run condition<select id="condition"><option value="pure">A · Pure</option><option value="assisted">B · Assisted (scores + loop guard)</option></select></label>
         <button id="newScramble">New scramble</button>
         <button id="run" class="primary">Run simulation</button>
       </section>
+      <p class="footnote">Pure measures unrestricted model decisions. Assisted offers one-step scores and, when enabled, excludes moves back to previously visited states. Neither condition supplies a solution.</p>
       <details class="control-drawer">
         <summary>Benchmark settings</summary>
         <div class="advanced-controls">
           <label>Move limit<input id="maxMoves" type="number" min="1" max="30" value="30" /></label>
           <label>History (-1 = all)<input id="historyLength" type="number" min="-1" max="30" value="-1" /></label>
+          <label><input id="loopAvoidance" type="checkbox" checked />Assisted: avoid revisiting states</label>
           <label><input id="baselines" type="checkbox" checked />Include offline baselines in results</label>
           <label
             >Seed<input

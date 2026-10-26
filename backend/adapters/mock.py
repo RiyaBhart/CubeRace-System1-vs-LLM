@@ -24,7 +24,7 @@ class MockAdapter(ModelAdapter):
         delay = self.rng.uniform(0.25, 0.45) if self.behavior == 'smart' else self.rng.uniform(0.025, 0.06)
         await asyncio.sleep(delay)
         invalid = self.behavior == 'invalid'
-        move = None if invalid else self.plan.pop(0) if self.plan else self.rng.choice(MOVES)
+        move = None if invalid else self.plan.pop(0) if self.plan else self.rng.choice(allowed_moves)
         elapsed = (time.perf_counter()-tick)*1000
         return AdapterResult(move=move, valid=not invalid, latency_ms=elapsed,
                              latency_incl_retries_ms=elapsed, raw_response={'synthetic': True, 'move': move},

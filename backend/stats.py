@@ -13,9 +13,9 @@ def average(values):
 def aggregate(games: list[GameResult]) -> list[dict]:
     groups = defaultdict(list)
     for game in games:
-        groups[(game.model, game.condition, game.benchmark_set, game.mock, game.agent_kind)].append(game)
+        groups[(game.model, game.condition, game.benchmark_set, game.mock, game.agent_kind, game.action_policy, game.config.get('presentation_version', 'legacy'))].append(game)
     output = []
-    for (key, condition, benchmark_set, mock, agent_kind), attempts in groups.items():
+    for (key, condition, benchmark_set, mock, agent_kind, action_policy, presentation_version), attempts in groups.items():
         scheduled = len(attempts)
         not_run = sum(g.status == 'NOT_RUN' for g in attempts)
         smoke_n = sum(g.diagnostic or g.status == 'SMOKE_TEST' for g in attempts)
@@ -29,7 +29,8 @@ def aggregate(games: list[GameResult]) -> list[dict]:
         gaps = [g.optimality_gap for g in solved if g.optimality_gap is not None]
         lengths = sorted({len(g.scramble) for g in attempts})
         output.append({'model': key, 'name': name, 'category': category,
-            'condition': condition, 'benchmark_set': benchmark_set, 'agent_kind': agent_kind,
+            'condition': condition, 'benchmark_set': benchmark_set, 'action_policy': action_policy,
+            'presentation_version': presentation_version, 'agent_kind': agent_kind,
             'source': 'OFFLINE BASELINE' if agent_kind == 'baseline' else 'SIMULATED' if mock else 'LIVE',
             'mock': mock, 'scheduled': scheduled, 'not_run': not_run, 'smoke_tests': smoke_n,
             'attempts': len(attempts), 'solved': len(solved),
@@ -58,12 +59,12 @@ def fmt(value, suffix='') -> str:
 
 def analysis_answers(rows: list[dict]) -> list[str]:
     rows = [r for r in rows if r.get('agent_kind') != 'baseline']
-    strata = {(r.get('condition'), r.get('benchmark_set'), r.get('mock')) for r in rows}
+    strata = {(r.get('condition'), r.get('benchmark_set'), r.get('mock'), r.get('action_policy'), r.get('presentation_version')) for r in rows}
     if len(strata) > 1:
         answers = []
-        for condition, benchmark_set, mock in sorted(strata):
-            subset = [r for r in rows if (r.get('condition'), r.get('benchmark_set'), r.get('mock')) == (condition, benchmark_set, mock)]
-            answers.extend(f'{benchmark_set} / {condition}: {a}' for a in analysis_answers(subset))
+        for condition, benchmark_set, mock, policy, version in sorted(strata):
+            subset = [r for r in rows if (r.get('condition'), r.get('benchmark_set'), r.get('mock'), r.get('action_policy'), r.get('presentation_version')) == (condition, benchmark_set, mock, policy, version)]
+            answers.extend(f'{benchmark_set} / {condition} / {policy} / {version}: {a}' for a in analysis_answers(subset))
         return answers
     if rows and all(r['attempts'] == 0 for r in rows):
         return ['No completed benchmark trials are available; smoke diagnostics and NOT_RUN slots do not establish a model winner.'] * 5

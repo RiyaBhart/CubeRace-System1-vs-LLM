@@ -1,5 +1,5 @@
 import json
-from .base import INSTRUCTIONS, OpenRouterAdapter, shared_context
+from .base import INSTRUCTIONS, IncompleteOutput, OpenRouterAdapter, shared_context
 from ..presentation import instruction
 
 URL = 'https://openrouter.ai/api/v1/chat/completions'
@@ -18,7 +18,7 @@ def unique_object(pairs):
 def parse_response(raw: dict, allowed: tuple[str, ...]) -> tuple[str, None]:
     choice = raw['choices'][0]
     if choice.get('finish_reason') == 'length' or choice.get('native_finish_reason') == 'max_tokens':
-        raise ValueError('Completion token ceiling reached before a complete move; no retry or limit increase was performed')
+        raise IncompleteOutput('Completion token ceiling reached before a complete move; no retry or limit increase was performed')
     content = choice['message']['content']
     if not isinstance(content, str) or not content.strip():
         raise ValueError('Model returned no move JSON')
@@ -37,7 +37,8 @@ class ChatAdapter(OpenRouterAdapter):
 
     def request(self, state, recent, allowed):
         context = {'instructions': instruction(self.settings.max_moves), **shared_context(state, recent, allowed,
-            max_moves=self.settings.max_moves, history_length=self.settings.history_length, condition=self.settings.condition)}
+            max_moves=self.settings.max_moves, history_length=self.settings.history_length, condition=self.settings.condition,
+            attempts_used=self.attempts_used)}
         # Opus 5.5 removed temperature/top_p/top_k. Sending temperature=0
         # excludes every endpoint under require_parameters=True (HTTP 404).
         body = {'model': self.model.id,

@@ -286,8 +286,10 @@ Named sets keep fixed ranges: warmup 3-4, primary 4-5, extension 15-20. Use
 
 A contains only state presentation. B adds the post-move correctly placed facelet
 count for each of the 18 legal actions. This heuristic is not distance to solved,
-may have local maxima and can decline on an optimal path. No loop filter is used;
-all 18 actions stay available to everyone. Full histories/counts and identical
+may have local maxima and can decline on an optimal path. Pure offers all 18 actions. Assisted now optionally filters actions returning to a
+previously visited state (LOOP_AVOIDANCE=1 by default), using the same rule for all
+four agents. If all neighbours were visited, it restores all actions and logs
+that fallback; it does not end the game or choose a move. Full histories/counts and identical
 instructions are shared across all four models. No solver data enters A or B.
 
 Offline, no-key, paired validation (four named agents are **simulations**, not API results):
@@ -335,3 +337,29 @@ source attribution. The independent blue lab theme keeps the permanent student
 banner and existing controls. No third-party credentials or benchmark evidence
 were imported. Duplicate JSON action keys are now rejected instead of silently
 keeping the last value. No paid inference was run for this adaptation.
+
+
+## State-loop and truncation fix
+
+See LOOP_FIX_REVIEW.md for the saved-live audit. Pure remains unrestricted and can
+cycle; choose **B / Assisted (scores + loop guard)** and enable **Assisted: avoid
+revisiting states** for the separately labeled assisted experiment. New records
+save offered options, state-before/state-after and any fully-visited-neighbourhood
+fallback. Rejected options are invalid attempts; no replacement move is invented.
+All 18 one-step counts remain visible, while criteria/schema enumerate offered
+options only. Counts are not exact distance and do not guarantee a solve.
+
+An explicitly truncated response now ends the game with ERROR after counting one
+invalid attempt and preserving usage/cost. This prevents additional paid calls at
+the same state after the fixed output ceiling was exhausted. It does not claim
+model incapability or silently raise the ceiling. Invalid non-truncated replies
+retain the existing shared attempt/retry policy. There are no added inference
+calls and no changes to the 30-attempt cap, retries, key or persistent budget.
+`moves_remaining` now counts all consumed attempts, including wasted invalid
+ones, and remains accurate when the displayed legal history is short or empty.
+
+The last inspected Claude response was HTTP 403 with OpenRouter scope key_limit:
+the key's USD 2 spending ceiling had been reached. This is separate from the app
+suite request allowance. The application does not alter the provider's limit.
+No new paid trial is part of this fix. Existing saved runs are never rerun on
+refresh, replay, results viewing or server restart.

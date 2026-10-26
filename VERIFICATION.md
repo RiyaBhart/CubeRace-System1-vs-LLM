@@ -102,3 +102,15 @@ Browser verified permanent identity, free-by-default controls and the new theme.
 Health endpoint returned ok after restarting the local server. Persistent live
 usage remains 604/604. No paid calls or budget increases were performed.
 See THIRD_PARTY.md for permission confirmation and exact reused portions.
+
+
+## State-loop and paid-repeat investigation
+
+See LOOP_FIX_REVIEW.md for the latest saved Pure race, real revisit counts,
+provider key-limit evidence, Assisted-only filter, correct remaining-attempt
+prompt budget, and technical truncation stop. No new paid calls were made.
+
+Final verification: 135 tests passed (one upstream AnyIO deprecation warning).
+JavaScript syntax check passed. Browser verified Assisted loop-guard controls
+and a free simulation; read-only saved-run API derived the actual revisit counts.
+Health/startup passed after restart. Live usage stayed at 714/724.

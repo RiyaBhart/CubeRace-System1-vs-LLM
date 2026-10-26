@@ -18,7 +18,12 @@ log = logging.getLogger(__name__)
 from ..presentation import INSTRUCTIONS, shared_context
 
 
+class IncompleteOutput(ValueError):
+    """A provider explicitly exhausted the fixed output ceiling."""
+
+
 class ModelAdapter(ABC):
+    attempts_used: int | None = None  # runner supplies the consumed turn budget
     @abstractmethod
     async def get_move(self, state: str, recent_moves: list[str], allowed_moves: tuple[str, ...]) -> AdapterResult:
         raise NotImplementedError
@@ -80,6 +85,10 @@ class OpenRouterAdapter(ModelAdapter):
                     if response.is_error or embedded:
                         code = response.status_code if response.is_error else (embedded.get('code', 400) if isinstance(embedded, dict) else 400)
                         result.error = f'API error {code}'
+                        metadata = embedded.get('metadata', {}) if isinstance(embedded, dict) else {}
+                        if isinstance(metadata, dict) and metadata.get('scope') == 'key_limit':
+                            # Do not echo key-management URLs, identifiers or raw credentials.
+                            result.error = 'OpenRouter API key spending limit reached; further live calls are blocked by the provider'
                         lowered = json.dumps(raw).lower()
                         result.unavailable = code in (401, 403, 404) or 'model_not_found' in lowered or 'model-not-found' in lowered
                         if result.unavailable:
@@ -98,7 +107,8 @@ class OpenRouterAdapter(ModelAdapter):
                         except (ValueError, KeyError, TypeError, IndexError) as exc:
                             result.invalid_outputs += 1
                             result.error = f'Invalid output: {exc}'
-                            retryable = True
+                            result.output_truncated = isinstance(exc, IncompleteOutput)
+                            retryable = not result.output_truncated
                 except httpx.RequestError as exc:
                     result.error = f'Network error: {type(exc).__name__}'
                     retryable = backoff = True

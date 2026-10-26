@@ -11,7 +11,15 @@ def game_diagnostics(game):
     moves = [r.move for r in game.records if r.valid and r.move]
     calls = [c for r in game.records for c in r.response.calls]
     parse_failures = sum(str(c.get('error', '')).startswith('Invalid output:') for c in calls)
-    return {'move_frequency': dict(Counter(moves)),
+    visited = {game.start_state}
+    revisits = 0
+    for record in game.records:
+        if record.valid:
+            revisits += record.state_after in visited
+            visited.add(record.state_after)
+    return {'unique_states': len(visited), 'state_revisits': revisits,
+        'loop_filter_fallbacks': sum(r.loop_filter_fallback for r in game.records),
+        'move_frequency': dict(Counter(moves)),
         'immediate_undo_loops': sum(b == invert_move(a) for a, b in zip(moves, moves[1:])),
         'same_move_repeats': sum(a == b for a, b in zip(moves, moves[1:])),
         'invalid_outputs': game.invalid_count, 'parse_failures': parse_failures,
@@ -22,10 +30,10 @@ def game_diagnostics(game):
 
 def comparison_report(games):
     from .stats import aggregate, fmt
-    lines = ['| Set | Condition | Source | Agent | Solved/attempted | Solve % | Solved moves | Gap | Turn ms | Total s | Invalid |',
+    lines = ['| Set | Condition / action policy | Source | Agent | Solved/attempted | Solve % | Solved moves | Gap | Turn ms | Total s | Invalid |',
              '|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|']
     for row in aggregate(games):
-        lines.append(f"| {row['benchmark_set']} | {row['condition']} | {row['source']} | {row['name']} | "
+        lines.append(f"| {row['benchmark_set']} | {row['condition']} / {row['action_policy']} | {row['source']} | {row['name']} | "
             f"{row['solved']}/{row['attempts']} | {fmt(row['success_rate']) if row['attempts'] else 'N/A'} | "
             f"{fmt(row['avg_solved_moves'])} | {fmt(row['gap_mean'])} | {fmt(row['avg_latency_ms'])} | "
             f"{fmt(row['total_time_s'])} | {row['invalid_count']} |")

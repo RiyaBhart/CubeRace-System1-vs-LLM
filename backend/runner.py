@@ -9,6 +9,7 @@ from .cube_engine import MOVES, apply_move, is_solved, solved_state
 from .schemas import AdapterResult, GameResult, MoveRecord
 from .accounting import summarize_usage
 from .presentation import PRESENTATION_VERSION
+from .action_policy import offered_moves
 
 EventSink = Callable[[str, dict], Awaitable[None]]
 
@@ -28,9 +29,11 @@ async def run_game(model: ModelConfig, adapter: ModelAdapter, start_state: str, 
                    scramble: list[str], repeat: int = 0, exact_optimal: int | None = None,
                    reference_moves: int | None = None, emit: EventSink | None = None,
                    smoke: bool = False) -> GameResult:
+    guarded = config.condition == 'assisted' and config.loop_avoidance
     result = GameResult(attempt_id=f'{puzzle_id}:{repeat}:{model.key}', run_id=run_id,
         model=model.key, model_id=model.id, model_name=model.name, category=model.category,
         mock=config.mock_models, diagnostic=smoke, condition=config.condition,
+        action_policy='avoid_visited' if guarded else 'unrestricted',
         benchmark_set=puzzle_id.split('-')[0], puzzle_id=puzzle_id, seed=seed, scramble=scramble,
         start_state=start_state, final_state=start_state, repeat=repeat, exact_optimal=exact_optimal,
         reference_moves=reference_moves, reference_label='reference, not proven optimal' if reference_moves is not None else None,
@@ -39,6 +42,7 @@ async def run_game(model: ModelConfig, adapter: ModelAdapter, start_state: str, 
                 'invalid_consumes_attempt': config.invalid_consumes_attempt,
                 'history_policy': 'all' if config.history_length == -1 else f'last {config.history_length}',
                 'history_length': config.history_length, 'condition': config.condition,
+                'loop_avoidance': guarded, 'truncation_policy': 'stop_game_error',
                 'claude_reasoning_effort': config.claude_reasoning_effort,
                 'claude_max_tokens': config.claude_max_tokens})
 
@@ -49,6 +53,7 @@ async def run_game(model: ModelConfig, adapter: ModelAdapter, start_state: str, 
     await event('game_start', {'game': result.model_dump()})
     began = time.perf_counter()
     state, history = start_state, []
+    visited = {start_state}
     result.status = 'RAN_OUT_OF_MOVES'
     try:
         while not is_solved(state) and result.attempts_used < config.max_moves:
@@ -57,9 +62,12 @@ async def run_game(model: ModelConfig, adapter: ModelAdapter, start_state: str, 
                 result.status = 'OUT_OF_TIME'
                 break
             await event('thinking', {'elapsed_s': time.perf_counter()-began})
+            allowed, fallback = offered_moves(state, visited, guarded)
+            state_before = state
+            adapter.attempts_used = result.attempts_used
             call_began = time.perf_counter()
             try:
-                response = await asyncio.wait_for(adapter.get_move(state, list(history), MOVES), timeout=remaining)
+                response = await asyncio.wait_for(adapter.get_move(state, list(history), allowed), timeout=remaining)
             except asyncio.TimeoutError:
                 elapsed = (time.perf_counter()-call_began)*1000
                 response = getattr(adapter, 'partial_result', None) or AdapterResult(latency_ms=elapsed)
@@ -70,7 +78,7 @@ async def run_game(model: ModelConfig, adapter: ModelAdapter, start_state: str, 
                 result.status = 'OUT_OF_TIME'
             except Exception as exc:
                 response = AdapterResult(error=f'Adapter error: {type(exc).__name__}', fatal=True)
-            valid = response.valid and response.move in MOVES
+            valid = response.valid and response.move in allowed
             if response.not_run or (response.budget_exhausted and not response.calls):
                 result.status = 'BUDGET_EXHAUSTED' if result.records else 'NOT_RUN'
                 result.error = response.error
@@ -78,7 +86,7 @@ async def run_game(model: ModelConfig, adapter: ModelAdapter, start_state: str, 
             if response.valid and not valid:
                 response.valid = False
                 response.invalid_outputs += 1
-                response.error = 'Adapter returned a move outside allowed set'
+                response.error = "Adapter returned a move outside this turn's offered set"
             result.retry_count += response.retries_used
             result.invalid_count += response.invalid_outputs
             if response.tokens is not None:
@@ -92,6 +100,7 @@ async def run_game(model: ModelConfig, adapter: ModelAdapter, start_state: str, 
             elif valid:
                 state = apply_move(state, response.move)
                 history.append(response.move)
+                visited.add(state)
                 result.moves_used += 1
                 result.attempts_used += 1
             elif config.invalid_consumes_attempt and not response.fatal:
@@ -99,6 +108,7 @@ async def run_game(model: ModelConfig, adapter: ModelAdapter, start_state: str, 
             record = MoveRecord(index=len(result.records)+1, move=response.move, latency_ms=response.latency_ms,
                 latency_incl_retries_ms=response.latency_incl_retries_ms, confidence=response.confidence,
                 valid=valid, retries=response.retries_used, invalid_outputs=response.invalid_outputs,
+                state_before=state_before, allowed_moves=list(allowed), loop_filter_fallback=fallback,
                 state_after=state, timestamp=datetime.now(timezone.utc).isoformat(),
                 elapsed_s=time.perf_counter()-began, response=response)
             result.records.append(record)
@@ -107,6 +117,9 @@ async def run_game(model: ModelConfig, adapter: ModelAdapter, start_state: str, 
             await event('move', {'record': record.model_dump(), 'moves_used': result.moves_used,
                                  'attempts_used': result.attempts_used})
             if result.status == 'OUT_OF_TIME':
+                break
+            if response.output_truncated:
+                result.status = 'ERROR'
                 break
             if response.unavailable:
                 result.status = 'UNAVAILABLE'

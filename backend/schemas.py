@@ -20,6 +20,7 @@ class AdapterResult(BaseModel):
     error: str | None = None
     retries_used: int = 0
     invalid_outputs: int = 0
+    output_truncated: bool = False
     valid: bool = False
     unavailable: bool = False
     fatal: bool = False
@@ -38,6 +39,9 @@ class MoveRecord(BaseModel):
     valid: bool
     retries: int
     invalid_outputs: int
+    state_before: str | None = None
+    allowed_moves: list[str] = Field(default_factory=list)
+    loop_filter_fallback: bool = False
     state_after: str
     timestamp: str
     elapsed_s: float
@@ -56,6 +60,7 @@ class GameResult(BaseModel):
     condition: str = 'legacy'
     benchmark_set: str = 'legacy'
     agent_kind: Literal['model', 'baseline'] = 'model'
+    action_policy: str = 'unrestricted'
     diagnostics: dict[str, Any] = Field(default_factory=dict)
     puzzle_id: str
     repeat: int

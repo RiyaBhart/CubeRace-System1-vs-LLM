@@ -70,7 +70,7 @@ async def local_only_mutations(request: Request, call_next):
 async def configuration():
     return {'models': [m.model_dump() for m in MODELS], 'mock': settings.mock_models,
             'student_name': settings.student_name, 'roll_number': settings.roll_number,
-            'condition': settings.condition, 'history_length': settings.history_length,
+            'condition': settings.condition, 'history_length': settings.history_length, 'loop_avoidance': settings.loop_avoidance,
             'max_moves': settings.max_moves, 'game_timeout_s': settings.game_timeout_s,
             'max_retries': settings.max_retries, 'claude_reasoning_effort': settings.claude_reasoning_effort,
             'claude_max_tokens': settings.claude_max_tokens,
@@ -188,6 +188,10 @@ async def saved_run(run_id: str):
     if not store.path.exists():
         raise HTTPException(404, 'Run not found')
     data = await asyncio.to_thread(store.snapshot)
+    from .diagnostics import game_diagnostics
+    # Derive new diagnostics for old recordings without rewriting their files.
+    for game, payload in zip(store.games, data['games']):
+        payload['diagnostics'] = game_diagnostics(game)
     data['answers'] = analysis_answers(data['summary'])
     return data
 

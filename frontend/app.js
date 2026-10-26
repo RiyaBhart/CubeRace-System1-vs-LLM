@@ -19,6 +19,7 @@ let config,
 const cards = new Map(),
   charts = [];
 const fmt = (n, d = 2) => (n == null ? "N/A" : Number(n).toFixed(d));
+const policyName = (policy) => policy === "avoid_visited" ? "loop guard" : "all moves";
 const timer = (seconds) => {
   const cs = Math.floor(Math.max(0, seconds) * 100);
   return `${Math.floor(cs / 6000)}:${String(Math.floor(cs / 100) % 60).padStart(2, "0")}.${String(cs % 100).padStart(2, "0")}`;
@@ -64,6 +65,7 @@ function setBusy(value) {
     "historyLength",
     "maxMoves",
     "baselines",
+    "loopAvoidance",
   ])
     $(id).disabled = value;
 }
@@ -215,9 +217,16 @@ function handle(kind, p) {
     const truncated = g.status !== "SOLVED" && g.records.some(r =>
       (r.response.calls || []).some(c => (c.raw_response?.choices || []).some(choice =>
         choice.finish_reason === "length" || choice.native_finish_reason === "max_tokens")));
-    failureNote.textContent = truncated
-      ? "The model hit its completion-token limit before returning a complete move. The failed call may still be billed."
+    const keyLimited = g.records.some(r => (r.response.calls || []).some(c =>
+      c.raw_response?.error?.metadata?.scope === "key_limit"));
+    failureNote.textContent = keyLimited
+      ? "OpenRouter blocked this API key because its spending limit was reached. This is separate from the app request cap."
+      : truncated
+      ? "The model hit its completion-token limit before returning a complete move. New games stop on this error to avoid repeating the paid call."
       : g.error || "";
+    const revisits = g.diagnostics?.state_revisits;
+    if (g.status !== "SOLVED" && revisits > 0)
+      failureNote.textContent += ` Revisited a prior state ${revisits} time(s). Pure permits cycles; Assisted with loop avoidance can filter them.`;
     failureNote.hidden = !failureNote.textContent;
     card.active = false;
     card.elapsed = g.total_time_s;
@@ -273,7 +282,7 @@ async function refreshRuns() {
 async function selectRun(id) {
   savedData = await api(`/api/runs/${encodeURIComponent(id)}`);
   latestData = savedData;
-  $("progress").textContent = `Recording condition: ${savedData.metadata.condition || "legacy"} · ${savedData.metadata.set}`;
+  $("progress").textContent = `Recording condition: ${savedData.metadata.condition || "legacy"} / ${policyName(savedData.metadata.action_policy)} · ${savedData.metadata.set}`;
   $("modeBadge").textContent = savedData.metadata.mock
     ? "SYNTHETIC RECORDING"
     : "LIVE RECORDING";
@@ -311,6 +320,7 @@ async function run() {
     max_moves: Number($("maxMoves").value),
     history_length: Number($("historyLength").value),
     baselines: $("baselines").checked,
+    loop_avoidance: $("loopAvoidance").checked,
     execution: live ? "live" : "simulated",
     live_approved: false,
     request_cap: live ? Number($("requestCap").value) : null,
@@ -546,15 +556,15 @@ function renderStats(data) {
   charts.splice(0).forEach((c) => c.destroy());
   const rows = data.summary;
   $("sampleLabel").textContent =
-    `${data.metadata.condition || "legacy"} · ${data.metadata.set} · ${data.games.length} scheduled slots · ${data.metadata.mode} · ${data.metadata.mock ? "SYNTHETIC MOCK" : "LIVE API"}`;
+    `${data.metadata.condition || "legacy"} / ${policyName(data.metadata.action_policy)} · ${data.metadata.set} · ${data.games.length} scheduled slots · ${data.metadata.mode} · ${data.metadata.mock ? "SYNTHETIC MOCK" : "LIVE API"}`;
   $("summaryRows").replaceChildren();
   $("winners").replaceChildren();
   $("distributions").replaceChildren();
-  const labels = rows.map((r) => `${r.name} · ${r.condition} · ${r.source}`);
+  const labels = rows.map((r) => `${r.name} · ${r.condition} / ${policyName(r.action_policy)} · ${r.source}`);
   for (const r of rows) {
     const tr = document.createElement("tr");
     const values = [
-      `${r.name} · ${r.condition} · ${r.source}`,
+      `${r.name} · ${r.condition} / ${policyName(r.action_policy)} · ${r.source}`,
       `${fmt(r.avg_latency_ms)} / ${fmt(r.median_latency_ms)} / ${fmt(r.p95_latency_ms)}`,
       fmt(r.avg_latency_incl_retries_ms),
       `${fmt(r.avg_solve_time_s)} / ${fmt(r.total_time_s)}`,
@@ -658,6 +668,7 @@ async function init() {
     $("execution").value = "simulated";
     $("condition").value = config.condition;
     $("historyLength").value = config.history_length;
+    $("loopAvoidance").checked = config.loop_avoidance;
     $("maxMoves").value = config.max_moves;
     if (config.mock)
       $("execution").querySelector('option[value="live"]').disabled = true;
@@ -745,7 +756,7 @@ async function refreshBilling() {
 }
 function approveLive(request) {
   $("approvalDescription").textContent =
-    `${request.condition} condition, ${request.max_moves}-move limit, history ${request.history_length}. ${request.set}: ${request.puzzles} puzzle(s), ${request.repeats} repeat(s), four assigned models. Hard cap: ${request.request_cap} requests. ${$("recommendedCap").textContent}`;
+    `${request.condition} condition (${request.condition === "assisted" && request.loop_avoidance ? "visited-state filter enabled" : "unrestricted actions"}), ${request.max_moves}-move limit, history ${request.history_length}. ${request.set}: ${request.puzzles} puzzle(s), ${request.repeats} repeat(s), four assigned models. Hard cap: ${request.request_cap} requests. ${$("recommendedCap").textContent}`;
   return new Promise((resolve) => {
     const dialog = $("approvalDialog");
     const finish = (approved) => {

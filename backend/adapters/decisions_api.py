@@ -10,8 +10,8 @@ from ..presentation import instruction
 URL = 'https://openrouter.ai/api/alpha/decisions'
 
 
-def build_request(model: str, state: str, recent: list[str], allowed: tuple[str, ...], *, max_moves=30, history_length=-1, condition='pure') -> dict:
-    context = shared_context(state, recent, allowed, max_moves=max_moves, history_length=history_length, condition=condition)
+def build_request(model: str, state: str, recent: list[str], allowed: tuple[str, ...], *, max_moves=30, history_length=-1, condition='pure', attempts_used=None) -> dict:
+    context = shared_context(state, recent, allowed, max_moves=max_moves, history_length=history_length, condition=condition, attempts_used=attempts_used)
     # Definitions occur once, in criteria. Other state fields match chat content.
     criteria = context.pop('criteria')
     return {'model': model, 'state': context, 'questions': {'next_move': {
@@ -60,7 +60,8 @@ def parse_response(raw: dict, allowed: tuple[str, ...]) -> tuple[str, float | No
 class DecisionsAdapter(OpenRouterAdapter):
     def request(self, state, recent, allowed):
         return URL, build_request(self.model.id, state, recent, allowed, max_moves=self.settings.max_moves,
-                                  history_length=self.settings.history_length, condition=self.settings.condition)
+                                  history_length=self.settings.history_length, condition=self.settings.condition,
+                                  attempts_used=self.attempts_used)
 
     def parse(self, raw, allowed):
         return parse_response(raw, allowed)

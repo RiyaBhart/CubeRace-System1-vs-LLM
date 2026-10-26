@@ -14,7 +14,8 @@ def solver():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('length', [3, 4, 5])
-async def test_oracle_exact_scrambles(solver, length):
+@pytest.mark.parametrize('condition', ['pure', 'assisted'])
+async def test_oracle_exact_scrambles(solver, length, condition):
     self_test()
     # All generated scrambles in this fixed reproducible test corpus, including
     # cancellations: optimal distance is measured, never assumed from length.
@@ -23,11 +24,14 @@ async def test_oracle_exact_scrambles(solver, length):
         optimal = solver.distance(state)
         model = ModelConfig(key='oracle', name='Oracle', category='DECISION MODEL', id='offline/oracle', endpoint='decisions')
         result = await run_game(model, BaselineAdapter('oracle', seed, solver), state,
-            config=Settings(_env_file=None, mock_models=True), run_id='test', puzzle_id=str(seed),
+            config=Settings(_env_file=None, mock_models=True, condition=condition), run_id='test', puzzle_id=str(seed),
             seed=seed, scramble=scramble, exact_optimal=optimal)
         assert result.status == 'SOLVED'
         assert result.moves_used == optimal and result.optimality_gap == 0
         assert result.final_state == solved_state()
+        if condition == 'assisted':
+            assert result.diagnostics['state_revisits'] == 0
+            assert result.diagnostics['loop_filter_fallbacks'] == 0
         current = state
         for record in result.records:
             current = apply_move(current, record.move)

@@ -1,367 +1,112 @@
-# Rubik's Cube Race
+# Rubik’s Cube Race — AI Engineering Assignment 02
 
-**Current app:** The version served locally is in [epository-app](repository-app/README.md). Follow that setup guide for the current interface and backend. The root app is retained for earlier runs and development history.
+**Riya Bhart · 23K-0063**
 
-Local FastAPI app for AI Engineering Assignment 02: four assigned OpenRouter
-models act on identical 3×3 cubes, one legal HTM move per decision. Includes
-deterministic engine, exact search, live SSE race, saved replay, statistics,
-five report answers, tests, and a permanent student identity banner.
+A reproducible OpenRouter experiment that compares how quickly four assigned models choose Rubik’s Cube moves and whether those moves lead to a solve. Each model starts from the same scrambled 3×3 cube and plays one move at a time under the same limits.
 
-## Setup
+**Quick links:** [Setup](#setup-and-run) · [Results at a glance](#results-at-a-glance) · [Experiment design](#experiment-design) · [Demo checklist](#demo-checklist) · [Source credit](#source-credit)
 
-Python 3.11+; run from this directory:
+## Results at a glance
+
+The current app has **no eligible paired LIVE primary trials** in its saved data. This table shows the available primary evidence; **N/A** means there is no eligible sample, so a solve rate or timing cannot be calculated.
+
+| Model | Solved / eligible | Mean move latency | Mean solve time | Mean optimality gap |
+| --- | ---: | ---: | ---: | ---: |
+| Jev 1.13 | 0 / 0 | N/A | N/A | N/A |
+| GPT-6 Luna Decisions | 0 / 0 | N/A | N/A | N/A |
+| Clef | 0 / 0 | N/A | N/A | N/A |
+| Claude Opus 5.5 | 0 / 0 | N/A | N/A | N/A |
+
+The local snapshot inspected for this README also contained 52 warm-up model entries marked `NOT_RUN`. They are excluded from the eligible denominator and do not establish a 0% solve rate. No LIVE extension trials were found in the current app. Older records from the earlier app use a different schema and are kept separate. Local run files are ignored by Git; a fresh checkout does not come with those records.
+
+## Research question
+
+Do fast decision models offer a better speed–quality trade-off than a frontier LLM? The benchmark measures successful move-response latency, total trial time, move count, solve rate, and distance from the exact optimum on short puzzles. It also keeps invalid responses and infrastructure errors visible so latency can be read alongside reliability.
+
+## Setup and run
+
+Run these commands from the repository root on Windows. Python 3.11+ is recommended. A compatible C toolchain may be needed if a Kociemba wheel is unavailable.
 
 ```powershell
+cd repository-app
 python -m venv .venv
-.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+.venv\Scripts\python -m pip install -r requirements-windows.txt
 Copy-Item .env.example .env
+.venv\Scripts\python -X utf8 -m scripts.build_bfs --report data/cache/bfs-build.json
+.venv\Scripts\python -X utf8 -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-On macOS/Linux use `source .venv/bin/activate` and `cp .env.example .env`.
-Enter `STUDENT_NAME`, `ROLL_NUMBER`, and your own key in `.env`. Credentials are
-backend-only and ignored by Git. If PowerShell blocks activation, invoke
-`.venv\Scripts\python.exe` directly. `requirements-lock.txt` records the complete
-Windows verification environment; `requirements.txt` pins portable direct dependencies.
+Before starting the server, open `repository-app/.env` and set `STUDENT_NAME=Riya Bhart` and `STUDENT_ROLL=23K-0063`. Leave the placeholder API key in place for a simulated demo. For a separately approved LIVE run, set `OPENROUTER_API_KEY` privately in that file. Restart the server after changes. If you already have a local `.env`, keep it and skip the copy command.
+
+On macOS or Linux, use `python3 -m venv .venv`, `.venv/bin/python`, `requirements.txt`, and `cp .env.example .env`.
+
+- [Race arena](http://127.0.0.1:8000/): Choose a puzzle, run a race, or replay a saved run.
+- [Results lab](http://127.0.0.1:8000/dashboard.html): View warm-up, primary, and extension statistics separately.
+- Stop the server with **Ctrl+C**.
+
+### Spend-free verification
+
+The race defaults to **SIMULATED**, which uses local mock agents. Loading the app, opening the dashboard, exporting, or replaying a saved run makes no paid inference requests. Select a saved run and choose **Replay saved run** to show existing moves without sending them to OpenRouter again.
+
+From `repository-app/`, run a focused offline check:
 
 ```powershell
-python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+.venv\Scripts\python -X utf8 -m pytest backend/tests/test_engine.py backend/tests/test_prompts.py backend/tests/test_windows_port.py -q
 ```
 
-Open [the app](http://127.0.0.1:8000/). It always starts in **Simulation · free**.
-The key does not opt you into inference. Benchmark settings and saved replay are
-collapsed to keep the four model cards visible. The identity banner cannot be
-dismissed and remains fixed on race, results and replay screens. Fill both
-identity fields before recording. Responsive 2D cube nets work without a CDN;
-only charts use pinned Chart.js 4.4.9. Tables and reports remain available offline.
+The [verification notes](repository-app/COPY_NOTES.md) describe the larger offline suite and which upstream archive checks depend on files excluded from this repository.
 
-## Minimum-spend workflow
+## Experiment design
 
-1. Run the tests and use free simulation to check the interface.
-2. Select **Smoke test · 4 calls**, choose Live, enter cap **4**, tick paid consent,
-   review the four-model settings, then explicitly approve that one run. Smoke
-   makes at most one request per model, with zero retries, and applies valid moves.
-   It is a protocol diagnostic, not a solved-game benchmark. Inspect raw responses
-   and statuses before continuing. Never present it as a solve-rate experiment.
-3. Select Primary, five puzzles, one repeat, sequential mode. The recommended cap
-   is **600** = 5 × 4 × 30 × (1 + 0 retries). Review the fixed Claude settings
-   and explicitly approve the new run. It may use fewer requests if cubes solve,
-   an API is incompatible, a deadline occurs, or the budget is exhausted.
-4. Keep completed live recordings. Use Saved runs, Replay (1×/2.5×), Results and
-   Export JSON for demonstrations. None of these operations invokes inference.
-   Page load, refresh, GET configuration, and result reads also make zero inference
-   calls. There is no automatic trial restart or failed-game rerun.
+All four agents receive the same current state: a 54-character `URFDLB` facelet string, an unfolded net, up to six recent legal moves, and the action counters. The shared instructions define the same 18 Singmaster moves. A half-turn counts as one move. The agents do not receive the scramble, solver output, or each other’s moves.
 
-The default persistent suite ceiling is **604 requests** for a fresh installation.
-Existing recorded live requests are imported once and consume that same allowance;
-the application never resets or increases it. This is a **request ceiling, not a
-dollar guarantee**. Actual cost and unknown cost are shown separately. For a
-nonempty ledger, inspect remaining allowance before scheduling a large benchmark.
+| Model | OpenRouter ID | Interface |
+| --- | --- | --- |
+| Jev 1.13 | `typesafe/jev-1.13` | Decisions API |
+| GPT-6 Luna Decisions | `openai/gpt-6-luna-decisions` | Decisions API |
+| Clef | `cloudflare/clef` | Decisions API |
+| Claude Opus 5.5 | `anthropic/claude-opus-5.5` | Chat Completions with strict move JSON schema |
 
-Equivalent explicit CLI operations (these commands spend credits):
+| Puzzle suite | Designed sample | Reference |
+| --- | --- | --- |
+| Warm-up | 3 puzzles, 3–4 turns | Exact HTM distance |
+| Primary | 10 puzzles, 4–5 turns | Exact HTM distance |
+| Extension | 5 puzzles, 15–20 turns | Kociemba reference upper bound |
 
-```powershell
-python -m backend.benchmark --set smoke --puzzles 1 --approve-live --request-cap 4
-python -m backend.benchmark --set primary --puzzles 5 --repeats 1 --mode sequential --approve-live --request-cap 600
-```
+Breadth-first search covers **621,649 states through depth five**, including solved. It supplies the exact shortest distance for covered puzzles and is never used to select a live move. Optimality gap is action slots used minus exact shortest distance for solved trials with a known optimum. An unsolved trial has no gap. Extension references are not proof of optimality.
 
-`--debug-probe --approve-live` is the same four-model, four-call diagnostic and
-prints/persists raw responses. It cannot bypass consent, ledger accounting or
-caps. Do not run it again when a saved smoke recording is sufficient. CLI calls
-without `--approve-live` simulate and never infer, even with a real key configured.
-`MOCK_MODELS=1` is an additional hard prohibition on live execution.
+The supplied settings use a **30-action limit**, a **300-second trial budget**, and a **60-second request timeout**. Claude uses fixed low reasoning effort and a 512-token ceiling, with no automatic transport or malformed-response retries. LIVE runs require explicit confirmation; budget limits and known or unknown charges are recorded separately from OpenRouter’s account balance.
 
-## Persistent budget and accounting
+## What the current evidence can answer
 
-`results/live-budget.sqlite` uses atomic SQLite transactions to reserve each
-request **before** network dispatch, including configured retries. Counters survive
-refresh, crashes, cancellation, explicit resume and process restarts. A reserved
-request may not have reached the service after a crash: counting it is deliberately
-conservative. Cancelling a request does not prove it was free. Unknown costs stay
-unknown. Raw usage is retained per request, plus normalized token/reasoning counts,
-known billed subtotal, unknown-cost count, and complete total only if all costs
-are known. Reasoning tokens are included in completion tokens and are not added
-again to total usage. No extra inference or billing-query calls retrieve costs.
+1. **Fastest model:** No eligible paired primary timing samples are available.
+2. **Highest solve rate:** No eligible paired primary trials are available for comparison.
+3. **Shortest solutions:** No eligible primary solves were recorded in the current app, so every primary optimality gap is N/A.
+4. **Speed versus quality:** The saved evidence cannot establish a trade-off.
+5. **Deployment choice:** There is no measured winner. A future hybrid could ask a decision model for a move first and escalate to the LLM after repeated states or low confidence. That is a proposal; it has not been benchmarked.
 
-Chat requests ask for `usage: {"include": true}`; the Decisions API documents
-usage as a response field and does not document that request flag, so it is not
-sent there. The response usage is recorded on success and failure, including
-invalid/truncated outputs. Billing is summarized per model, run and local suite.
-Legacy completed recordings are imported once; older standalone probes or lost
-in-flight requests from before ledger installation cannot be reconstructed.
-Simulations never increment the live counter or produce invented dollar costs.
+Latency includes network and provider behavior. Even with more data, results should be read alongside sample size, route changes, invalid responses, timeouts, and the number of trials excluded by spending or infrastructure limits.
 
-`LIVE_REQUEST_LIMIT` initializes the stored suite ceiling once. Changing `.env`
-later does not change it. There is no reset endpoint. If an operator deliberately
-needs a different ceiling, stop the server, inspect usage, then explicitly run:
+## Demo checklist
 
-```powershell
-python -m backend.budget
-python -m backend.budget --set-suite-cap 1000 --confirm-budget-change
-```
+No demo video is published in this repository. For the assignment recording:
 
-That deliberate operator action preserves every request count; it is never run
-by the app, a benchmark, export, replay or this verification. A per-run cap is
-also immutable once recorded and cannot be increased by resume. Choosing a cap
-does not reserve or enlarge the suite ceiling. If either cap is reached, active
-attempts end BUDGET_EXHAUSTED and untouched slots are NOT_RUN.
+1. Capture the **in-progress race** with all four model cards visible.
+2. Capture the **completed race** with the final outcomes on screen.
+3. Open **Results lab** for the closing statistics screen.
+4. Keep the **student name and roll number visible throughout**. Label simulated and replay footage accurately; replay does not replace a required live recording.
 
-## Fixed methodology and payload fairness
+## Repository map
 
-All four IDs remain solely in `backend/config.py`:
+| Path | Contents |
+| --- | --- |
+| [`repository-app/backend/app/`](repository-app/backend/app/) | Cube engine, shared prompts, model adapters, race runner, and FastAPI |
+| [`repository-app/frontend/`](repository-app/frontend/) | Race arena, cube and net views, results, and replay |
+| [`repository-app/data/puzzles/`](repository-app/data/puzzles/) | Fixed warm-up, primary, and extension puzzles |
+| [`repository-app/backend/tests/`](repository-app/backend/tests/) | Offline engine, prompt, adapter, workflow, and safeguard tests |
+| [`repository-app/scripts/`](repository-app/scripts/) | Cache generation, verification, and benchmark tools |
+| [`LEGACY_README.md`](LEGACY_README.md) | Documentation for the earlier root-level app |
 
-- `typesafe/jev-1.13`
-- `openai/gpt-6-luna-decisions`
-- `cloudflare/clef`
-- `anthropic/claude-opus-5.5`
+## Source credit
 
-The exact common instruction is:
-
-> Choose one move toward the goal. Facelets: row-major URFDLB, fixed centers. Singmaster turns: clockwise viewed directly at the named face. Half-turn metric (HTM): 180 degrees counts as one move. Limit: 30 moves.
-
-Each call uses `backend/presentation.py`: current facelets plus an unfolded color-name
-net, per-face grids with top/right neighbor orientation, fixed center color map,
-solved goal, complete own history by default, remaining moves, HTM, all legal move
-meanings and per-face/total correctly placed counts. The shared instruction advises
-against immediate undo without a reason. Decisions puts the identical instruction
-and criteria in its question; Claude receives the equivalent JSON and the system
-message `Return one legal move as schema JSON.` It must return only `{"move":"R"}`.
-No live adapter receives a scramble, BFS distance, solution or another agent's moves.
-The richer representation intentionally costs more input than the previous compact
-condition; it is a new experiment, and improved solve rates have not been established.
-
-Claude Opus 5.5 does not support `temperature`, `top_p` or `top_k`; these are
-omitted. Retaining the old `temperature=0` excludes all current endpoints under
-strict parameter routing. This model-specific API limitation replaces the original
-assignment's suggested temperature setting; shared state/action information is
-unchanged. See [the migration guide](https://platform.claude.com/docs/en/models/opus-5-5/migration-guide).
-
-`CLAUDE_REASONING_EFFORT=low` and `CLAUDE_MAX_TOKENS=512` are fixed across trials
-and saved in the run fingerprint/results. Accepted efforts are low, medium, high,
-xhigh and max. Mandatory adaptive reasoning is **not disabled**. The output limit
-covers reasoning plus the action response; 512 is a ceiling, not consumption.
-It may truncate an answer. That failure and reported usage are recorded without
-automatically changing the ceiling, effort, prompt, budget or model.
-
-This reduces avoidable overhead; **actual token savings, costs and solution quality
-have not been established through paid testing of the optimized implementation**.
-Character counts are not token measurements. See `IMPLEMENTATION_REPORT.md`.
-
-Contract sources checked without inference:
-
-- [OpenRouter reasoning controls](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens)
-- [Claude Opus 5.5 model](https://openrouter.ai/anthropic/claude-opus-5.5)
-- [Anthropic effort and mandatory adaptive thinking](https://platform.claude.com/docs/en/build-with-claude/effort)
-- [OpenRouter usage accounting](https://openrouter.ai/docs/cookbook/administration/usage-accounting)
-- [Decisions request/response schema](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request)
-
-## Reliability, denominators and timing
-
-Default `MAX_RETRIES=0`: one request per move attempt. If explicitly configured,
-all four models share the same retry ceiling; invalid responses consume retries,
-and network errors/429/5xx use exponential backoff. Permanent API errors such as
-invalid ID, 401/403/404 or unsupported schema stop that model and persist a block
-for the rest of the run, including explicit resume. Later puzzle slots are
-NOT_RUN, with no repeated predictable request. This is API compatibility handling,
-not a prediction that an agent will fail the cube. A new explicitly approved run
-may intentionally recheck after an operator fixes the cause.
-
-Limits remain 30 attempts and at most 30 applied legal moves, 300 seconds/game,
-60 seconds/request by default. Invalid exhausted turns waste an attempt by default;
-`INVALID_CONSUMES_ATTEMPT=0` preserves that optional shared policy but the hard live
-request cap still applies. Solving stops immediately. UNAVAILABLE/ERROR are actual
-attempted failures; NOT_RUN and smoke diagnostics are not counted as solving trials.
-The summary shows scheduled, attempted, unsolved, unavailable and not-run counts
-separately. Compare solved-only gaps alongside failure and missing-trial counts.
-
-Use concurrent mode for a race, sequential for report measurements to reduce
-rate-limit interference. Sequential order rotates across puzzles/repeats. Every
-model has its own timer and semaphore; one pooled httpx client uses HTTP/2 and
-keep-alive. An unbilled catalog GET warms the origin before timed games, only after
-run approval for live execution. It cannot guarantee warm model weights or every
-connection. `perf_counter` measures individual call-plus-parse time; turn raw
-latency sums calls, while inclusive latency adds local accounting/logging/backoff.
-Game time includes event delivery. Median/p95 interpolate recorded turn latencies.
-
-## Engine, sets and exact search
-
-54 facelets use Kociemba U R F D L B order, each face row-major viewed from outside;
-centers stay fixed. Sticker geometry generates all 18 HTM permutations once.
-Engine startup aborts if self-tests fail. Tests cover independent standard U/R
-vectors, inverse/order/commutator identities, seeded scrambles and known BFS sizes.
-Scrambles avoid repeated faces and reducible commuting triples. Local random
-generators preserve reproducibility without changing global RNG state.
-
-Warm-up: two 3–4-turn puzzles; primary: ten 4–5-turn puzzles by CLI default,
-five by the economical UI default (minimum five); optional extension: five
-15–20-turn puzzles. Fixed seeds, repeat counts and seed offsets are saved.
-One-puzzle race mode uses its seed directly. Tests use exact HTM distance, never
-scramble length as assumed truth. Default BFS depth five contains 621,649 states
-and is cached once in a trusted local pickle; building runs off the event loop.
-Bidirectional fallback proves distances up to eight moves within a node budget.
-Failure to prove required primary truth stops orchestration rather than inventing it.
-
-```powershell
-python -m backend.benchmark --build-bfs 5
-python -m backend.benchmark --set warmup --puzzles 2
-python -m backend.benchmark --set extension --puzzles 5
-```
-
-The last two commands simulate. Optional `pip install -r requirements-optional.txt`
-and `USE_KOCIEMBA=1` add an extension reference, labeled **not proven optimal**.
-Extension optimality gaps remain N/A without an exact distance. Solvers assist
-ground truth and explicitly synthetic demos only, never real agent decisions.
-Do not load third-party pickle caches. Serialization validates colors/centers;
-physical reachability of arbitrary external strings is not claimed.
-
-## Results, resume and demo checklist
-
-Each completed game atomically updates authoritative run JSON, derived CSV,
-per-run Markdown report and latest `results/report.md`. Raw response calls/usage
-also live in the durable budget ledger and rotating `calls.jsonl`; keys/headers
-are never logged. Reports answer the five required questions with observed data
-and include limits on small samples, correlated repeats, nondeterminism, network
-variance, rate limits, provider routing and survivorship bias. No winner or hybrid
-advantage is assumed. Rank is solved first, then legal turns, then time; unsolved
-ties use correct facelets, then time. That display score never guides live actions.
-
-Explicit `--resume RUN_ID` requires the same settings and, for live runs,
-`--approve-live --request-cap ORIGINAL_CAP`. Completed failed or solved games are
-skipped. An interrupted incomplete game is retried only by that explicit command;
-its earlier reservations remain counted. Settings changes reject resume. JSON is
-authoritative if a crash leaves stale CSV/report; resume regenerates derivatives.
-Run one server worker/writer against a results directory. Stop with Ctrl+C for
-graceful task cancellation and client cleanup. SSE reconnects missed events and
-does not restart inference. After server restart, choose saved replay.
-
-Mandatory recording stages:
-
-1. Keep student name and roll number readable in the fixed banner **throughout**.
-2. Show an in-progress concurrent race with identical starting cubes and histories.
-3. Hold the completed cards with honest statuses, timings, turns and rankings.
-4. Open Results for the statistical table/charts and five report answers, with
-   identity still visible. Use saved live replay rather than paying to rerun for filming.
-
-Simulated behaviors are arbitrary programmed examples, labeled SYNTHETIC. They
-cannot establish the real models' performance. Recorded fixture provenance is
-explicit: successful protocol samples are synthetic; the historical 401 sample
-is a sanitized observed response. Do not mix diagnostic/simulated/legacy runs
-with an optimized live primary experiment when making scientific claims.
-
-## Architecture and verification
-
-`cube_engine.py`, `scramble.py`, `optimal.py`: simulation and exact references.
-`adapters/`: shared context, strict parsing and a single live network-call site.
-`budget.py`, `accounting.py`: durable reservations, reported billing, explicit caps.
-`runner.py`, `benchmark.py`: independent games, reproducible sets, consent, resume.
-`storage.py`, `stats.py`, `schemas.py`: atomic exports, report and typed records.
-`main.py`: local API, passive read routes, SSE and guarded run creation.
-`frontend/`: plain HTML/CSS/JS, no build step. `backend/tests/`: offline tests.
-
-```powershell
-python -m pytest -q
-node --check frontend/app.js
-```
-
-Node is optional except for the syntax check. Tests use mocked transports and
-fake credentials, including the smoke→five-puzzle workflow, zero retries, caps,
-restart/concurrency, consent, unknown costs, reasoning accounting, permanent
-incompatibility, four-model fairness and simulation isolation. Browser checks
-cancel the paid approval dialog and use only free simulation/saved replay.
-
-Troubleshooting: 401 means invalid/disabled credentials; 402 indicates credit or
-budget issues; 404 may be an invalid ID or endpoint. Inspect saved raw responses.
-Never replace an assigned model silently. A schema rejection is recorded and
-blocks repeated attempts in that run. If charts cannot load, use tables/report.
-Delete only a corrupt BFS cache to rebuild it; **do not delete the live ledger to
-get more budget**. Optional Kociemba may need compiler tools. This is a loopback
-assignment application: public hosting would require authentication, quotas and
-a multi-worker job store. No public deployment is included.
-
-## Pipeline diagnostics and paired conditions
-
-`HISTORY_LENGTH=-1` means all legal moves, `0` none, otherwise last N (up to 30).
-`CONDITION=pure` is A; `assisted` is B. Set these in the environment or override
-with CLI/UI controls. MAX_MOVES stays capped at 30; shorter limits are configurable.
-Named sets keep fixed ranges: warmup 3-4, primary 4-5, extension 15-20. Use
-`--set race --puzzles 1 --length N` for a custom fixed length.
-
-A contains only state presentation. B adds the post-move correctly placed facelet
-count for each of the 18 legal actions. This heuristic is not distance to solved,
-may have local maxima and can decline on an optimal path. Pure offers all 18 actions. Assisted now optionally filters actions returning to a
-previously visited state (LOOP_AVOIDANCE=1 by default), using the same rule for all
-four agents. If all neighbours were visited, it restores all actions and logs
-that fallback; it does not end the game or choose a move. Full histories/counts and identical
-instructions are shared across all four models. No solver data enters A or B.
-
-Offline, no-key, paired validation (four named agents are **simulations**, not API results):
-
-```powershell
-python -m pytest -q
-python -m backend.benchmark --set primary --puzzles 5 --condition both --baselines --mode sequential
-```
-
-Both conditions reuse the same seed/puzzle generation and produce separate run
-IDs and reports. UI Condition chooses one per approved run; retain the same seed,
-set and repeat count for the other. Enable offline baselines in settings to include
-oracle/random/greedy in the Results table. They never use OpenRouter. The exact
-oracle is NOT_RUN for extension states without a proven exact distance; it never
-masquerades as a two-phase optimal solution. Random uses a seeded uniform choice;
-greedy uses one-step correct-facelet maximization with seeded tie-breaking. These
-baseline policies are fixed across conditions. Their local CPU timings are not
-network latency comparisons. They are excluded from model winner badges/answers.
-
-For a **separately approved** paid experiment, use `--approve-live --request-cap N`.
-Do not run this solely to record a demo. `--condition both` authorizes **two runs**,
-each capped at N: combined worst case 2N, still within the unchanged persistent
-suite budget. This patch neither resets nor increases any budget. Zero retries and
-Claude low effort/512 ceiling are unchanged. The ceiling can still prevent replies.
-No additional paid test has been performed for this patch.
-
-Read existing JSON without inference, merge only into separate condition/set/source rows:
-
-```powershell
-python -m backend.diagnostics results/RUN_A.json results/RUN_B.json --output results/comparison.md
-python -m backend.diagnostics results/RUN_A.json --raw
-```
-
-Diagnostics include selected move frequencies, immediate inverse pairs (including
-half-turn self-inverses), consecutive identical moves, parse failures, invalid-output
-rate over completed calls, HTTP errors and optionally full saved raw responses.
-Legacy recordings are labeled `legacy`; do not relabel them as the new Pure condition.
-The pipeline review lists observed failures, fixes, assumptions and offline evidence.
-
-
-## Reference adaptation and interface
-
-See THIRD_PARTY.md for the permission confirmation, reviewed revision and precise
-source attribution. The independent blue lab theme keeps the permanent student
-banner and existing controls. No third-party credentials or benchmark evidence
-were imported. Duplicate JSON action keys are now rejected instead of silently
-keeping the last value. No paid inference was run for this adaptation.
-
-
-## State-loop and truncation fix
-
-See LOOP_FIX_REVIEW.md for the saved-live audit. Pure remains unrestricted and can
-cycle; choose **B / Assisted (scores + loop guard)** and enable **Assisted: avoid
-revisiting states** for the separately labeled assisted experiment. New records
-save offered options, state-before/state-after and any fully-visited-neighbourhood
-fallback. Rejected options are invalid attempts; no replacement move is invented.
-All 18 one-step counts remain visible, while criteria/schema enumerate offered
-options only. Counts are not exact distance and do not guarantee a solve.
-
-An explicitly truncated response now ends the game with ERROR after counting one
-invalid attempt and preserving usage/cost. This prevents additional paid calls at
-the same state after the fixed output ceiling was exhausted. It does not claim
-model incapability or silently raise the ceiling. Invalid non-truncated replies
-retain the existing shared attempt/retry policy. There are no added inference
-calls and no changes to the 30-attempt cap, retries, key or persistent budget.
-`moves_remaining` now counts all consumed attempts, including wasted invalid
-ones, and remains accurate when the displayed legal history is short or empty.
-
-The last inspected Claude response was HTTP 403 with OpenRouter scope key_limit:
-the key's USD 2 spending ceiling had been reached. This is separate from the app
-suite request allowance. The application does not alter the provider's limit.
-No new paid trial is part of this fix. Existing saved runs are never rerun on
-refresh, replay, results viewing or server restart.
+The current app adapts [Srijaali/ai-engineering](https://github.com/Srijaali/ai-engineering/tree/8dbedf12d56c37f1ba467c626107a0e3ebc67d9f) with permission. This version includes a redesigned interface, Windows compatibility changes, and separate local run and billing records. The [upstream README](repository-app/UPSTREAM_README.md) is preserved for attribution; its results and recording belong to the upstream project. See [attribution details](repository-app/THIRD_PARTY.md) and the [current app’s operational notes](repository-app/README.md).

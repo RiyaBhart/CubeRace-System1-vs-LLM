@@ -1,0 +1,14 @@
+{
+  "upstream_commit": "8dbedf12d56c37f1ba467c626107a0e3ebc67d9f",
+  "checks": {
+    "html_shell_redesigned": true,
+    "separate_dark_theme": true,
+    "race_client_unchanged": true,
+    "cube_renderer_unchanged": true,
+    "engine_unchanged": true,
+    "agent_and_runner_unchanged": true
+  },
+  "initial_functional_tests_passed": 495,
+  "additional_platform_and_ui_tests_passed": 3,
+  "paid_inference_requests_during_verification": 0
+}

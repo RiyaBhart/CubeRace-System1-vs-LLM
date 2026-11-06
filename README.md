@@ -1,5 +1,7 @@
 # Rubik's Cube Race
 
+**Current app:** The version served locally is in [epository-app](repository-app/README.md). Follow that setup guide for the current interface and backend. The root app is retained for earlier runs and development history.
+
 Local FastAPI app for AI Engineering Assignment 02: four assigned OpenRouter
 models act on identical 3×3 cubes, one legal HTM move per decision. Includes
 deterministic engine, exact search, live SSE race, saved replay, statistics,

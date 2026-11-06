@@ -1,0 +1,83 @@
+/* Independent presentation layer. Reused application source is attributed below. */
+:root {
+  --bg:#0b1422; --surface:#122137; --ink:#edf3fc; --muted:#b2bfd2;
+  --mustard:#32445f; --coral:#493555; --teal:#205049; --line:#33465f;
+  color-scheme:dark; font-family:Segoe UI,system-ui,sans-serif;
+}
+body { background:var(--bg); }
+header { min-height:76px; padding:16px max(24px,calc((100vw - 1380px)/2)); align-items:center; background:#101e31; border-bottom:1px solid #354c69; }
+header h1 { display:flex; align-items:center; gap:10px; font:700 25px/1.2 Segoe UI,system-ui; letter-spacing:-.7px; }
+.brand-mark { display:grid; place-items:center; width:34px; height:34px; background:#8cbaff; color:#11233b; border-radius:7px; font-size:22px; }
+header h1 small { margin-left:8px; padding-left:14px; border-left:1px solid #536984; color:#b8cbe3; font-size:10px; letter-spacing:1.7px; font-weight:600; }
+header .student { padding:0; }
+#identity { border:1px solid #536e91; border-radius:6px; background:#182c45; color:#edf3fc; padding:8px 12px; font:650 14px/1.4 Segoe UI,system-ui; }
+main,.race-page main { max-width:1380px; padding:106px 28px 32px; background:var(--bg); }
+h1,h2,h3,.timer,.current,.rank-badge,td.metric,.field-heading,.tablewrap .model-pill { font-family:Segoe UI,system-ui,sans-serif; }
+.corner-blob { display:none; }
+.workspace-intro { display:flex; justify-content:space-between; align-items:end; gap:24px; margin-bottom:28px; padding-bottom:24px; border-bottom:1px solid var(--line); }
+.workspace-kicker { color:#94bfff; font-size:10px; font-weight:700; letter-spacing:2px; margin:0 0 10px; }
+.workspace-intro h2 { font-size:34px; font-weight:650; letter-spacing:-1px; margin:0 0 9px; }
+.workspace-intro p:not(.workspace-kicker) { color:var(--muted); font-size:13px; margin:0; line-height:1.6; }
+.workspace-links { display:flex; gap:6px; padding:5px; border:1px solid var(--line); border-radius:8px; white-space:nowrap; background:#13243b; }
+.workspace-links a { padding:9px 14px; border-radius:5px; text-decoration:none; font-size:12px; color:#c4d4e9; }
+.race-page .workspace-links a:first-child,.dashboard-page .workspace-links a:last-child { background:#87b4f3; color:#11213a; }
+.controls { display:flex; align-items:end; gap:14px; padding:16px; border:1px solid var(--line); border-radius:9px; background:#101f33; }
+.control-field,.control-action { flex:1; min-height:58px; padding:0; border:0; border-radius:0; box-shadow:none; background:transparent; }
+.field-heading { font-size:10px; font-weight:650; color:#b2bfd2; text-transform:uppercase; letter-spacing:.9px; margin-bottom:6px; }
+.control-action .field-heading { color:#b2bfd2; }
+.control-field select { padding:9px 30px 9px 12px; min-height:38px; height:38px; border:1px solid #405777; border-radius:5px; background:#192c45; font-size:12px; line-height:18px; }
+.control-field:after { right:15px; bottom:16px; border-color:#c7d9ed; }
+.control-action #run { height:38px; min-height:38px; padding:9px 15px; justify-content:center; border-radius:5px; background:#8dbdff; color:#11223b; text-align:center; font:700 12px/18px Segoe UI,system-ui; }
+.control-action #run:disabled { background:#415674; color:#d5e0ef; }
+.race-meta { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px; margin:12px 0 0; }
+#scramble { margin:0; font-family:Consolas,monospace; color:#c8d9ef; }
+.run-limits { color:#adbed5; font-size:11px; margin:0; }
+#modeBanner,#modeBanner.live { width:100%; display:block; padding:9px 12px; min-width:0; background:#192c47; color:#c3daf9; border:1px solid #425e84; border-radius:5px; text-align:left; font-size:11px; letter-spacing:.5px; margin:14px 0; }
+#modeBanner:before,#modeBanner:after { display:none; }
+.cards { gap:18px; margin-top:18px; }
+.card { padding:0; border-radius:10px; overflow:hidden; box-shadow:0 9px 24px #0002; background:#122137; border:1px solid #3b4e69; }
+.card .title { padding:15px 18px; background:#192b44; border-bottom:1px solid #3b4e69; }
+.model-pill { border:0; border-left:3px solid #8cbaff; border-radius:0; padding:0 0 0 9px; background:none; color:#edf3fc; font-size:16px; }
+.model-pill.model-1 { border-color:#73d5cb; }.model-pill.model-2 { border-color:#c1a3ee; }.model-pill.model-3 { border-color:#e9bc7e; color:#edf3fc; }
+.badge { background:#0c192b; color:#c2d2e9; border-color:#4c6181; border-radius:4px; font-size:9px; }
+.card-content { grid-template-columns:190px minmax(0,1fr); padding:20px 18px; gap:18px; min-height:230px; }
+.view-toggle { border-radius:5px; border-color:#4b6383; padding:2px; background:#0d192a; }
+.view-toggle button { border-radius:3px; background:#0d192a; color:#c0d1e8; }
+.view-toggle button[aria-pressed=true] { background:#8ab5ef; color:#14243c; }
+.cube-svg { width:180px; height:166px; }
+.cube-svg polygon { stroke:#122033; }.cube-svg text { fill:#142338; }
+.sticker { color:#142338; border-color:#142338; }
+.face span { color:#cfdded; }
+.state { color:#a8c4eb; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:1px; }
+.timer { padding:10px 0 5px; font-size:20px; font-weight:650; letter-spacing:-.5px; }
+.current { color:#c8d9f2; font:600 16px/1.5 Consolas,monospace; }
+.history { height:50px; padding:7px 9px; border:1px solid #354c69; background:#0c1829; border-radius:4px; color:#bdcce0; }
+.result { border-radius:4px; font-size:10px; background:#1b2d46; }
+.result[data-status=SOLVED] { background:#205049; }.result[data-status=RAN_OUT_OF_MOVES] { background:#493555; }
+.rank-badge { color:#17243b; border-color:#324963; border-radius:4px; font-family:Segoe UI,system-ui; }
+.saved-area { margin-top:24px; padding:22px 0 0; border-top:1px solid var(--line); }.saved-heading h2 { font-size:18px; }
+.saved-heading a { font-size:12px; color:#a7caff; }
+.row-controls button,.row-controls select,select { background:#192c45; border-color:#526b8b; color:#edf3fc; border-radius:5px; font-size:12px; }
+button:disabled { color:#a9b9cd; background:#23364d; }
+#dashboardView h2 { margin:20px 0; font-size:27px; }
+.tablewrap { border-radius:8px; background:#122137; box-shadow:none; padding:10px; }
+.tablewrap .model-pill { background:transparent; color:#edf3fc; font-size:12px; }
+th { background:#192b44; color:#c1d3ec; }
+td.metric,td:nth-child(8) { background:#20394e; color:#e0ecfa; }
+.baseline td,.baseline td.metric { background:#1b2e43; color:#bdcce0; }
+details { background:#122137; border-radius:7px; }dialog { border-radius:10px; background:#14253c; border-color:#6681a4; }
+dialog::backdrop { background:#0009; }
+.source-credit { display:flex; justify-content:space-between; gap:15px; flex-wrap:wrap; margin-top:28px; border-top:1px solid var(--line); padding-top:18px; color:#adbed5; font-size:10px; line-height:1.6; }
+.source-credit a { color:#afccf4; }
+@media(max-width:1000px) { .card-content { grid-template-columns:160px minmax(0,1fr); gap:10px; padding:16px; }.cube-svg { width:155px; height:150px; }.timer { font-size:17px; } }
+@media(max-width:850px) {
+ header { min-height:104px; padding:12px 16px; gap:9px; align-items:flex-start; }
+ header h1 { font-size:23px; }#identity { font-size:12px; padding:5px 9px; }
+ main,.race-page main { padding:128px 16px 24px; }
+ .workspace-intro { align-items:start; flex-direction:column; gap:17px; margin-bottom:20px; }
+ .workspace-intro h2 { font-size:29px; }.controls { padding:12px; gap:10px; flex-wrap:wrap; }
+ .control-field { flex:1 1 42%; }.control-action { flex:1 1 100%; }.cards { grid-template-columns:1fr; }
+ .card-content { grid-template-columns:170px minmax(0,1fr); }.cube-svg { width:165px; height:155px; }
+ dialog { margin-top:124px; }.workspace-links { align-self:start; }header h1 small { font-size:8px; }
+}
+@media(max-width:400px) { .card .title { padding:13px; }.model-pill { font-size:14px; }.card-content { grid-template-columns:140px minmax(0,1fr); padding:13px; }.cube-svg { width:140px; height:140px; }.timer { font-size:14px; }.net { transform:scale(.72); } }

@@ -8,16 +8,20 @@ A reproducible OpenRouter experiment that compares how quickly four assigned mod
 
 ## Results at a glance
 
-The current app has **no eligible paired LIVE primary trials** in its saved data. This table shows the available primary evidence; **N/A** means there is no eligible sample, so a solve rate or timing cannot be calculated.
+Two concurrent **LIVE warm-up runs** were saved for the **same puzzle**, `warmup-001` (`R D2 L'`). The exact shortest solution is **3 turns**. All eight trials reached the 30-action limit without solving the cube. These are two repeats on one scramble, not two different puzzles.
 
-| Model | Solved / eligible | Mean move latency | Mean solve time | Mean optimality gap |
-| --- | ---: | ---: | ---: | ---: |
-| Jev 1.13 | 0 / 0 | N/A | N/A | N/A |
-| GPT-6 Luna Decisions | 0 / 0 | N/A | N/A | N/A |
-| Clef | 0 / 0 | N/A | N/A | N/A |
-| Claude Opus 5.5 | 0 / 0 | N/A | N/A | N/A |
+| Model | Solved / trials | Valid turns / actions | Valid-move latency, mean / median / p95 | Mean trial time | Final correct stickers, latest run | Forfeits, both runs |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| Jev 1.13 | 0 / 2 | 60 / 60 | 662 / 543 / 1,368 ms | 21.50 s | 22 / 54 | 0 |
+| GPT-6 Luna Decisions | 0 / 2 | 30 / 60 | 777 / 634 / 1,812 ms | 21.89 s | 20 / 54 | 30 refusals |
+| Clef | 0 / 2 | 60 / 60 | 1,040 / 889 / 1,920 ms | 32.64 s | 24 / 54 | 0 |
+| Claude Opus 5.5 | 0 / 2 | 4 / 60 | 8,267 / 8,331 / 9,390 ms | 296.12 s | 34 / 54 | 56 truncated |
 
-The local snapshot inspected for this README also contained 52 warm-up model entries marked `NOT_RUN`. They are excluded from the eligible denominator and do not establish a 0% solve rate. No LIVE extension trials were found in the current app. Older records from the earlier app use a different schema and are kept separate. Local run files are ignored by Git; a fresh checkout does not come with those records.
+Latency includes only responses that yielded valid moves. The valid-turn count is also the latency sample size. A refusal or truncated response consumes an action without changing the cube. Trial time includes forfeits. Solve time and optimality gap are **N/A** because there were no solves. Correct stickers show partial progress; they are not an exact distance to solved.
+
+**Cost across both runs:** 240 requests, zero retries, **$0.978581 in reported charges**, and 30 requests without a reported cost. The known amount is a subtotal, not the final bill.
+
+**Scope:** No eligible paired LIVE primary or extension trials were saved. The five-puzzle primary minimum has not been met. Raw run files, credentials, and the local ledger remain outside Git.
 
 ## Research question
 
@@ -79,21 +83,21 @@ The supplied settings use a **30-action limit**, a **300-second trial budget**, 
 
 ## What the current evidence can answer
 
-1. **Fastest model:** No eligible paired primary timing samples are available.
-2. **Highest solve rate:** No eligible paired primary trials are available for comparison.
-3. **Shortest solutions:** No eligible primary solves were recorded in the current app, so every primary optimality gap is N/A.
-4. **Speed versus quality:** The saved evidence cannot establish a trade-off.
-5. **Deployment choice:** There is no measured winner. A future hybrid could ask a decision model for a move first and escalate to the LLM after repeated states or low confidence. That is a proposal; it has not been benchmarked.
+1. **Fastest decisions:** Jev had the lowest mean and median valid-move latency across both repeats: about 662 ms and 543 ms.
+2. **Highest solve rate:** All four tied at 0 out of 2. Both trials per model used the same puzzle.
+3. **Shortest solutions:** No model solved. The exact optimum was three turns, so an optimality gap cannot be reported.
+4. **Speed versus quality:** Jev returned valid moves fastest. Claude finished both races with 34 of 54 stickers correctly placed, but produced only 4 valid turns across 60 actions and did not solve.
+5. **Deployment choice:** I would test a hybrid before adopting either approach. A fast model could propose routine moves and escalate after a refusal or repeated state. Luna refused 30 times and Claude truncated 56 responses. The hybrid remains a proposal, not a measured improvement.
 
-Latency includes network and provider behavior. Even with more data, results should be read alongside sample size, route changes, invalid responses, timeouts, and the number of trials excluded by spending or infrastructure limits.
+Latency includes network and provider behavior. The one-scramble sample, unequal valid-response counts, and fixed 512-token ceiling limit what can be concluded. A follow-up should use distinct paired primary puzzles and report response failures alongside latency.
 
 ## Demo checklist
 
-No demo video is published in this repository. For the assignment recording:
+No demo video is published in this repository. To show this result locally, open the saved LIVE warm-up and use Replay, or use the original LIVE footage if available. For the assignment recording:
 
 1. Capture the **in-progress race** with all four model cards visible.
 2. Capture the **completed race** with the final outcomes on screen.
-3. Open **Results lab** for the closing statistics screen.
+3. Open **Results lab**, then select **Warm-up** for the closing statistics screen.
 4. Keep the **student name and roll number visible throughout**. Label simulated and replay footage accurately; replay does not replace a required live recording.
 
 ## Repository map

@@ -6,6 +6,8 @@ A reproducible OpenRouter experiment that compares how quickly four assigned mod
 
 **Quick links:** [Setup](#setup-and-run) · [Results at a glance](#results-at-a-glance) · [Experiment design](#experiment-design) · [Demo checklist](#demo-checklist) · [Source credit](#source-credit)
 
+**[Video demo and explanation](https://drive.google.com/file/d/1pOuVruJdv7YTMDlz07FWIKJD98CFzg2m/view?usp=sharing)**
+
 ## Results at a glance
 
 Two concurrent **LIVE warm-up runs** were saved for the **same puzzle**, `warmup-001` (`R D2 L'`). The exact shortest solution is **3 turns**. All eight trials reached the 30-action limit without solving the cube. These are two repeats on one scramble, not two different puzzles.
@@ -93,7 +95,7 @@ Latency includes network and provider behavior. The one-scramble sample, unequal
 
 ## Demo checklist
 
-No demo video is published in this repository. To show this result locally, open the saved LIVE warm-up and use Replay, or use the original LIVE footage if available. For the assignment recording:
+The recording is linked at the top of this README. To show this result locally, open the saved LIVE warm-up and use Replay, or use the original LIVE footage if available. For the assignment recording:
 
 1. Capture the **in-progress race** with all four model cards visible.
 2. Capture the **completed race** with the final outcomes on screen.
